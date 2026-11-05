@@ -1,6 +1,6 @@
 ---
 name: openstudio_vav_reheat_system_creator
-description: Create a multi-zone VAV system in an OSM using bundled, version-pinned scripts and saved-model topology validation.
+description: Create a multi-zone VAV reheat system, including the bounded packaged VAV profile, in an OSM using version-pinned scripts and saved-model validation.
 metadata:
   version: 0.4.2
   output_format: markdown_with_json_summary
@@ -57,8 +57,8 @@ Legacy object-level VAV skills have been removed.
    creation rather than forcing DX/gas/electric air coils because plants are absent.
    Run each preparation as a separate reviewed transaction, then preflight VAV
    against the latest output using the returned plant names/handles.
-3. Set `defaults_profile: prototype_vav_v1` only when the human user explicitly
-   chose the generic prototype defaults. Set `dx_approved: true` only when the
+3. Set `defaults_profile: prototype_vav_v1` or `prototype_pvav_v1` only when the
+   human user explicitly chose the corresponding profile. Set `dx_approved: true` only when the
    human explicitly chose DX cooling. A broad request to add VAV, an agent's own
    suggestion, or missing input is not approval. Prior explicit human selections
    persist across turns; do not ask again for the same choice. Keep these fields
@@ -179,6 +179,17 @@ always selects hydronic VAV and can create plants. Independent coil/plant-role
 selection and central heating None are explicit extensions. Template controls,
 compliance processing, and ventilation adequacy are not established by this
 profile. New SDK UUIDs differ across runs; settings and topology are deterministic.
+
+`prototype_pvav_v1` covers packaged VAV with `NaturalGas` central heat,
+`DXTwoSpeed` cooling and `Electricity` terminal reheat. Select each coil type
+explicitly and include DX approval. Review the 50 °C zone heating design and
+maximum reheat temperature, Normal damper heating action, 30% constant minimum
+terminal airflow, and Always On minimum outdoor-air schedule. The schedule
+enables minimum ventilation and does not set the outdoor-air fraction to 100%.
+The PVAV profile uses the Standards VAV fan ratings and the harness's shared
+VAV fan power curve. Editable settings, including the return plenum and schedules,
+are shown in preflight. When PVAV defaults are undecided, review these settings
+with the user before selecting the profile. Unselected preflight proposes VAV defaults.
 
 ## Failures and continuity
 
