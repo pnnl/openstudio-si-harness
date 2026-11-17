@@ -567,6 +567,8 @@ def test_preparation_available_in_every_relocated_owning_bundle(sdk, tmp_path, h
     result = adapter.export_plugin(tmp_path / "export", dry_run=False)
     moved = tmp_path / "moved-plugin"
     shutil.move(str(result.plugin_dir), moved)
+    hvac = tmp_path / "moved-hvac-plugin"
+    shutil.move(str(result.plugin_dir.parent / "openstudio-si-hvac"), hvac)
     manifest = yaml.safe_load(MANIFEST_PATH.read_text())
     owners = next(
         x["owners"]
@@ -575,7 +577,8 @@ def test_preparation_available_in_every_relocated_owning_bundle(sdk, tmp_path, h
     )
     assert len(owners) == 16
     for owner in owners:
-        skill = moved / "skills" / owner["skill"]
+        plugin = moved if owner["skill"] == "openstudio-sdk-model-editor" else hvac
+        skill = plugin / "skills" / owner["skill"]
         script = skill / "scripts/prepare_model.py"
         assert script.is_file()
         assert (skill / "../../sdk/schemas/preparation_report.schema.json").is_file()
@@ -588,7 +591,7 @@ def test_preparation_available_in_every_relocated_owning_bundle(sdk, tmp_path, h
             timeout=20,
         )
         assert run.returncode == 0, run.stderr
-    script = moved / "skills/openstudio-hvac-remover/scripts/prepare_model.py"
+    script = hvac / "skills/openstudio-hvac-remover/scripts/prepare_model.py"
     output = tmp_path / "prepared.osm"
     report = tmp_path / "preparation.json"
     run = subprocess.run(

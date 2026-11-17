@@ -18,8 +18,11 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
   runtime storage, MCP-backed blackboard workflow state, and downloadable
   self-contained OSM geometry viewers.
-- Claude Code plugin export.
-- Codex plugin export.
+- Codex and Claude Code marketplace exports with two installable plugins. OpenStudio
+  SI owns provider routing, sessions, model lineage, simulation, results, and
+  artifacts. OpenStudio SI HVAC Modeler (`openstudio-si-hvac`) owns the reviewed
+  HVAC capabilities, including VAV reheat, packaged VAV, prototype CAV, plant
+  creation, topology, sizing, and air-side and plant equipment edits.
 - `openstudio-hvac-visualizer` produces read-only local JSON, Mermaid and Markdown
   equipment views of air/plant connections, VRF membership and every thermal zone.
   Zones are green, air-side equipment blue and water-side equipment orange;
@@ -305,6 +308,24 @@ are reported separately and do not block core readiness. NLR discovery accepts
 configured; verify NLR status/version through
 the connected server before modeling. PNNL’s foundational MCP advertises
 `openstudio-si-mcp` and uses the host connection name `openstudio_si`.
+
+Install HVAC Modeler from the same marketplace alongside OpenStudio SI core
+`>=0.4.3 <0.5.0`. When upgrading from `0.4.2`, enable HVAC Modeler explicitly
+and reload the host. Claude Code's `0.4.x` split releases forward the old
+namespaced skills. In Codex, select the same skill name from HVAC Modeler.
+Keep saved sessions and recheck any saved plan before applying. Load
+`hvac-modeler` for an HVAC task, or ask the agent which plugins are ready.
+`openstudio-si doctor --json` lists each known plugin and its description.
+Run the host plugin's doctor helper for a check that includes its contract.
+For an active HVAC installation, pass its plugin root to the helper with
+`--plugin-dir <path-containing-skills-and-sdk>`. The check verifies the
+package, the core contract, and the OpenStudio CLI version. The host's skill
+list establishes whether the plugin is enabled in that session. Doctor reports a cached
+package as `cached_unverified` until the active host supplies its skill path.
+For local topology inspection and bundled SDK edits, the helper's
+`--core-metadata` mode reads the active core's manifest and contract from disk.
+Each selected capability still performs its own OpenStudio preflight.
+Use the connected core runtime for simulation and results.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install

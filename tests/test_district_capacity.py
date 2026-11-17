@@ -260,7 +260,7 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     from adapters.claude_code_adapter import ClaudeCodeAdapter
     from adapters.codex_adapter import CodexAdapter
     from adapters.contracts import HostAdapterConfig
-    from plugin_fixture import copy_plugin_for_skill
+    from plugin_fixture import copy_plugin_for_skill, hvac_export_root
     from test_supply_fan_performance import native_cli
 
     exe = str(native_cli())
@@ -272,7 +272,7 @@ def test_native_relocated_exports(sdk, tmp_path, host):
     )
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
-    skill = next(exported.rglob("openstudio-district-capacity-editor/SKILL.md")).parent
+    skill = next(hvac_export_root(exported, host).rglob("openstudio-district-capacity-editor/SKILL.md")).parent
     for relative in [
         "scripts/doctor.py",
         "scripts/sdk_probe.py",

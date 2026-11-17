@@ -209,7 +209,7 @@ def test_native_export_apply(sdk, model_file, config, tmp_path, host, pvav):
             runtime_mode="marketplace",
         )
     ).export_plugin(tmp_path / "export", dry_run=False)
-    skill = exported.plugin_dir / "skills/openstudio-vav-reheat-system-creator"
+    skill = exported.plugin_dir.parent / "openstudio-si-hvac/skills/openstudio-vav-reheat-system-creator"
     if pvav:
         config = pvav_configuration(config)
     config_file = tmp_path / "config.json"

@@ -971,7 +971,7 @@ def test_relocated_public_native_visualizer(topology, tmp_path, host):
         )
     )
     export = tmp_path / "original export"
-    plugin = adapter.export_plugin(export, dry_run=False).plugin_dir
+    plugin = adapter.export_plugin(export, dry_run=False).plugin_dir.parent / "openstudio-si-hvac"
     moved = tmp_path / "relocated plugin"
     shutil.move(str(plugin), moved)
     shutil.rmtree(export)

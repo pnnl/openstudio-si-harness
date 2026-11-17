@@ -7,7 +7,7 @@ import sqlite3
 import subprocess
 import sys
 import pytest
-from plugin_fixture import copy_plugin_for_skill
+from plugin_fixture import copy_plugin_for_skill, hvac_export_root
 from test_vav_preflight import sdk, SCRIPTS
 from vav_fixture import prepare_vav_fixture
 from test_supply_fan_performance import native_cli
@@ -489,7 +489,7 @@ def test_relocated_native_coil_bundle(sdk, tmp_path, host, mode):
         if mode in ("edit", "settings")
         else "openstudio-water-coil-connector"
     )
-    bundle = next(exported.rglob(name + "/SKILL.md")).parent
+    bundle = next(hvac_export_root(exported, host).rglob(name + "/SKILL.md")).parent
     relocated = tmp_path / "relocated"
     relocated = copy_plugin_for_skill(bundle, relocated)
     shutil.rmtree(exported)

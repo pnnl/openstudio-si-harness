@@ -30,7 +30,7 @@ def plugin(tmp_path, request):
     result = adapter.export_plugin(output, dry_run=False)
     assert set(preview.files) == set(result.files)
     moved = tmp_path / "moved complete plugin"
-    shutil.move(str(result.plugin_dir), moved)
+    shutil.move(str(result.plugin_dir.parent / "openstudio-si-hvac"), moved)
     shutil.rmtree(output)
     return moved
 
@@ -107,7 +107,7 @@ def test_incomplete_or_mismatched_library_fails_closed(plugin, tmp_path, damage)
     assert run.returncode == 2 and not run.stderr
     result = json.loads(run.stdout)
     assert result["status"] == "plugin_incomplete" and not result["ready"]
-    assert "complete" in result["next_action"]
+    assert "OpenStudio SI HVAC Modeler" in result["next_action"]
     assert len(run.stdout) < 1500
 
 
@@ -152,7 +152,7 @@ def test_every_public_entrypoint_resolves_after_complete_relocation(plugin, tmp_
         if "runpy.run_path" in p.read_text()
     ]
     # Plant source replacement adds four launchers; cleanup adds one.
-    assert len(scripts) == 99
+    assert len(scripts) == 96
     for script in scripts:
         if script.name == "sdk_probe.py":
             continue  # Probe has no argparse; the separate native case executes it.
@@ -171,7 +171,7 @@ def test_native_probe_uses_relocated_library(plugin, tmp_path):
     )
     if not executable.is_file():
         pytest.skip("Native 3.11.0 CLI unavailable")
-    script = plugin / "skills/openstudio-sdk-model-editor/scripts/sdk_probe.py"
+    script = plugin / "skills/openstudio-hvac-remover/scripts/sdk_probe.py"
     run = subprocess.run(
         [str(executable), "execute_python_script", str(script)],
         cwd=tmp_path,
@@ -206,7 +206,7 @@ def test_export_runs_after_its_source_workspace_is_deleted(tmp_path, monkeypatch
     )
     result = adapter.export_plugin(tmp_path / "export", dry_run=False)
     moved = tmp_path / "relocated complete plugin"
-    shutil.move(str(result.plugin_dir), moved)
+    shutil.move(str(result.plugin_dir.parent / "openstudio-si-hvac"), moved)
     shutil.rmtree(source)
     run = invoke(
         moved / "skills/openstudio-hvac-remover/scripts/remove_hvac.py",
@@ -324,7 +324,7 @@ def test_size_categories_match_actual_disjoint_files(plugin):
         sum(x["bytes"] for x in actual.values())
         == report["resource_bytes_excluding_report"]
     )
-    assert actual["launchers"]["files"] == report["launchers"] == 99
+    assert actual["launchers"]["files"] == report["launchers"] == 96
     assert (
         report["resource_bytes_excluding_report"] + report_path.stat().st_size
         < 1_114_005

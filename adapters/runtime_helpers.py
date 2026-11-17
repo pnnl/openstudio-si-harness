@@ -32,22 +32,27 @@ def write_runtime_helpers(
     installers_dir: Path, *, post_install_guidance: str | None = None
 ) -> None:
     """Write common setup helpers with optional host-specific reload guidance."""
-    installers_dir.mkdir(parents=True, exist_ok=True)
-    (installers_dir / "doctor_runtime.py").write_text(
-        render_doctor_runtime_script(), encoding="utf-8"
-    )
+    write_runtime_doctor(installers_dir)
     (installers_dir / "install_runtime.py").write_text(
         render_install_runtime_script(post_install_guidance=post_install_guidance),
         encoding="utf-8",
     )
 
 
+def write_runtime_doctor(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "doctor_runtime.py").write_text(
+        render_doctor_runtime_script(), encoding="utf-8"
+    )
+
+
 def render_doctor_runtime_script() -> str:
-    """Render the common marketplace runtime doctor helper."""
+    """Render the core plugin doctor helper."""
     return '''"""Check whether the OpenStudio SI runtime can be used by this plugin."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import shutil
@@ -107,7 +112,44 @@ def nlr_mcp_status() -> dict[str, object]:
     return {"configured": False, "name": "nlr_openstudio", "checked_paths": checked_paths}
 
 
+def core_metadata() -> dict[str, object]:
+    """Read the colocated host manifest and MCP declaration without starting a service."""
+    core = Path(__file__).resolve().parents[3]
+    try:
+        manifest_path = next(
+            core / f".{host}-plugin" / "plugin.json"
+            for host in ("claude", "codex")
+            if (core / f".{host}-plugin" / "plugin.json").is_file()
+        )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        config = json.loads((core / ".mcp.json").read_text(encoding="utf-8"))
+        metadata = config["mcpServers"]["openstudio_si"]["env"]
+        version = metadata["OPENSTUDIO_SI_PLUGIN_VERSION"]
+        contract = metadata["OPENSTUDIO_SI_PLUGIN_CONTRACT_VERSION"]
+        if (
+            manifest["name"] != "openstudio-si"
+            or version != manifest["version"]
+            or version != PLUGIN_VERSION
+            or contract != PLUGIN_CONTRACT_VERSION
+        ):
+            raise ValueError("Core plugin manifest, MCP declaration, and doctor disagree.")
+    except StopIteration:
+        return {"ok": False, "error": "Core host plugin manifest is missing."}
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "plugin_version": version, "plugin_contract_version": contract}
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Check OpenStudio SI plugin readiness.")
+    parser.add_argument("--plugin-dir", type=Path, help="Active HVAC Modeler plugin root.")
+    parser.add_argument("--core-metadata", action="store_true", help="Read core plugin metadata from disk.")
+    args = parser.parse_args()
+    if args.core_metadata:
+        payload = core_metadata()
+        print(json.dumps(payload, indent=2))
+        return 0 if payload["ok"] else 2
+    specialist_args = ["--plugin-dir", str(args.plugin_dir)] if args.plugin_dir else []
     reporting_script = Path(__file__).resolve().parents[3] / "skills" / "report-openstudio-failure" / "scripts" / "report_failure.py"
     reporting = {"optional": True, "submission_ready": False, "affects_modeling_readiness": False}
     if reporting_script.is_file():
@@ -147,6 +189,7 @@ def main() -> int:
             PLUGIN_VERSION,
             "--plugin-contract-version",
             PLUGIN_CONTRACT_VERSION,
+            *specialist_args,
         ],
         check=False,
         text=True,

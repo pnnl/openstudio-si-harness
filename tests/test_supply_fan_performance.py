@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import pytest
-from plugin_fixture import copy_plugin_for_skill
+from plugin_fixture import copy_plugin_for_skill, hvac_export_root
 from test_vav_preflight import sdk, model_file, SCRIPTS
 
 sys.path.insert(0, str(SCRIPTS))
@@ -362,7 +362,7 @@ def test_native_bundle_after_relocation(sdk, model_file, tmp_path, host):
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
     skill = next(
-        exported.rglob("openstudio-supply-fan-performance-editor/SKILL.md")
+        hvac_export_root(exported, host).rglob("openstudio-supply-fan-performance-editor/SKILL.md")
     ).parent
     moved = tmp_path / "relocated"
     moved = copy_plugin_for_skill(skill, moved)

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 import pytest
-from plugin_fixture import copy_plugin_for_skill
+from plugin_fixture import copy_plugin_for_skill, hvac_export_root
 from test_vav_preflight import sdk, SCRIPTS
 from test_pump_performance import fixture, native_run
 from test_supply_fan_performance import native_cli
@@ -634,7 +634,7 @@ def test_relocated_pump_replacement_bundle(sdk, tmp_path, host):
     adapter = ClaudeCodeAdapter(setup) if host == "claude" else CodexAdapter(setup)
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
-    bundle = next(exported.rglob("openstudio-pump-replacer/SKILL.md")).parent
+    bundle = next(hvac_export_root(exported, host).rglob("openstudio-pump-replacer/SKILL.md")).parent
     moved = tmp_path / "relocated"
     moved = copy_plugin_for_skill(bundle, moved)
     shutil.rmtree(exported)

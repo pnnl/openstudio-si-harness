@@ -1,7 +1,7 @@
 ---
 name: openstudio_workflow_state
 description: Maintain persistent task-global workflow state for long-running OpenStudio energy modeling tasks.
-version: 0.4.2
+version: 0.4.3
 output_format: markdown_with_json_state
 ---
 

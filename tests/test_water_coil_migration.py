@@ -7,7 +7,7 @@ import sqlite3
 import subprocess
 
 import pytest
-from plugin_fixture import copy_plugin_for_skill
+from plugin_fixture import copy_plugin_for_skill, hvac_export_root
 from test_vav_preflight import sdk
 from test_water_coil_operations import fixture, preflight, apply
 from test_supply_fan_performance import native_cli
@@ -567,7 +567,7 @@ def test_relocated_native_migration_bundle(sdk, tmp_path, host):
     )
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
-    bundle = next(exported.rglob("openstudio-water-coil-connector/SKILL.md")).parent
+    bundle = next(hvac_export_root(exported, host).rglob("openstudio-water-coil-connector/SKILL.md")).parent
     relocated = tmp_path / "relocated"
     relocated = copy_plugin_for_skill(bundle, relocated)
     shutil.rmtree(exported)

@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 PACKAGE_NAME = "openstudio-si"
-PACKAGE_VERSION_FALLBACK = "0.4.2"
+PACKAGE_VERSION_FALLBACK = "0.4.3"
 PLUGIN_VERSION_ENV = "OPENSTUDIO_SI_PLUGIN_VERSION"
 PLUGIN_CONTRACT_ENV = "OPENSTUDIO_SI_PLUGIN_CONTRACT_VERSION"
 # Contract 6.0 is the release 0.4.2 plugin/runtime interface baseline.

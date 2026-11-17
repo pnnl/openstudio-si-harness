@@ -74,9 +74,9 @@ def test_exported_resources_execute_after_relocation_without_runtime(
         )
     )
     export_root = tmp_path / "export"
-    preview = adapter.export_plugin(export_root, dry_run=True)
+    preview = adapter.export_plugin(export_root, dry_run=True, split_hvac=False)
     assert not export_root.exists()
-    result = adapter.export_plugin(export_root, dry_run=False)
+    result = adapter.export_plugin(export_root, dry_run=False, split_hvac=False)
     assert set(preview.files) == set(result.files)
     exports = asset_manifest.resource_exports_for_host(
         resource_workspace, result.plugin_dir, host
@@ -324,10 +324,10 @@ def test_export_rejects_alias_collision_in_adapter_copied_files(
     module = claude_code_adapter if host == "claude" else codex_adapter
     original = module._write_skill_references
 
-    def copy_extra_reference(skills_dir, workspace_root):
-        original(skills_dir, workspace_root)
+    def copy_extra_reference(skills_dir, workspace_root, *, skill_ids=None):
+        original(skills_dir, workspace_root, skill_ids=skill_ids)
         # Simulate a local skill file / host-specific reference not in the manifest.
-        path = skills_dir / "openstudio-economizer-editor/references/economizer.md"
+        path = skills_dir / "openstudio-sdk-model-editor/references/model_preparation.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("Distinct local reference; must not be silently shadowed.")
 
