@@ -29,6 +29,30 @@ def reviewed_plan(sdk, model_file, config, tmp_path):
     return path
 
 
+def pvav_configuration(config):
+    return dict(
+        config,
+        defaults_profile="prototype_pvav_v1",
+        central_heating={"type": "NaturalGas"},
+        central_cooling={"type": "DXTwoSpeed", "dx_approved": True},
+        reheat={"type": "Electricity"},
+    )
+
+
+@pytest.mark.parametrize("role", ["central_heating", "central_cooling", "reheat"])
+def test_pvav_rejects_out_of_scope_coils(sdk, model_file, config, tmp_path, role):
+    cfg = pvav_configuration(config)
+    cfg[role] = {"type": "Water", "plant_loop": {"name": "HW"}}
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(cfg))
+    report = sdk[1].preflight(model_file, path)
+    assert not report["ready"]
+    assert any(
+        f"{role}.type: prototype_pvav_v1 requires" in e for e in report["errors"]
+    )
+    assert not Path(cfg["output_model_path"]).exists()
+
+
 @pytest.mark.parametrize("heating", ["Water", "NaturalGas", "Electricity", "None"])
 @pytest.mark.parametrize("cooling", ["Water", "DXTwoSpeed"])
 @pytest.mark.parametrize("reheat", ["Water", "NaturalGas", "Electricity", "None"])
@@ -163,7 +187,8 @@ def test_wrong_sdk_blocks_before_plan_read(sdk, apply_module, tmp_path, monkeypa
 
 
 @pytest.mark.parametrize("host", ["claude", "codex"])
-def test_native_export_apply(sdk, model_file, config, tmp_path, host):
+@pytest.mark.parametrize("pvav", [False, True], ids=["vav", "pvav"])
+def test_native_export_apply(sdk, model_file, config, tmp_path, host, pvav):
     from adapters.claude_code_adapter import ClaudeCodeAdapter
     from adapters.codex_adapter import CodexAdapter
     from adapters.contracts import HostAdapterConfig
@@ -185,6 +210,8 @@ def test_native_export_apply(sdk, model_file, config, tmp_path, host):
         )
     ).export_plugin(tmp_path / "export", dry_run=False)
     skill = exported.plugin_dir / "skills/openstudio-vav-reheat-system-creator"
+    if pvav:
+        config = pvav_configuration(config)
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps(config))
     command = [str(exe), "execute_python_script"]
@@ -215,6 +242,24 @@ def test_native_export_apply(sdk, model_file, config, tmp_path, host):
     assert completed.returncode == 0, completed.stdout + completed.stderr
     report = json.loads(completed.stdout.splitlines()[-1])
     assert report["validation"]["ok"]
+    if pvav:
+        saved = (
+            sdk[0]
+            .osversion.VersionTranslator()
+            .loadModel(report["output_model_path"])
+            .get()
+        )
+        assert len(saved.getCoilHeatingGass()) == 1
+        assert len(saved.getCoilCoolingDXTwoSpeeds()) == 1
+        terminal = saved.getAirTerminalSingleDuctVAVReheats()[0]
+        assert terminal.reheatCoil().to_CoilHeatingElectric().is_initialized()
+        assert terminal.damperHeatingAction() == "Normal"
+        assert terminal.maximumReheatAirTemperature() == 50.0
+        assert (
+            saved.getControllerOutdoorAirs()[0]
+            .minimumOutdoorAirSchedule()
+            .is_initialized()
+        )
 
 
 def test_multiple_zones_schedules_and_return_plenum(

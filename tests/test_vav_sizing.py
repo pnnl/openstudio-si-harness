@@ -8,15 +8,21 @@ import sqlite3
 import shutil
 import subprocess
 import pytest
-from test_vav_apply import sdk, apply_module, reviewed_plan
+from test_vav_apply import sdk, apply_module, reviewed_plan, pvav_configuration
 from vav_fixture import prepare_vav_fixture
 
 
 @pytest.mark.parametrize(
-    "hydronic,use_schedule_file", [(True, False), (False, False), (True, True)]
+    "hydronic,use_schedule_file,pvav",
+    [
+        (True, False, False),
+        (False, False, False),
+        (True, True, False),
+        pytest.param(False, False, True, id="pvav"),
+    ],
 )
 def test_native_vav_design_day_sizing(
-    sdk, apply_module, tmp_path, hydronic, use_schedule_file
+    sdk, apply_module, tmp_path, hydronic, use_schedule_file, pvav
 ):
     exe = Path(
         os.environ.get(
@@ -29,6 +35,8 @@ def test_native_vav_design_day_sizing(
     source_path, config, fixture, original = prepare_vav_fixture(
         sdk[0], tmp_path, hydronic
     )
+    if pvav:
+        config = pvav_configuration(config)
     schedule_source = None
     if use_schedule_file:
         o = sdk[0]
@@ -119,7 +127,15 @@ def test_native_vav_design_day_sizing(
     ]
     assert len(reheat_capacities) == 5 and all(x > 0 for x in reheat_capacities), sizing
     assert len(cooling_capacities) == 1 and cooling_capacities[0] > 0, sizing
-    if not use_schedule_file:
+    if pvav:
+        gas_capacity = [
+            row[3]
+            for row in sizing
+            if row[0] == "Coil:Heating:Fuel"
+            and row[2] == "Design Size Nominal Capacity"
+        ]
+        assert len(gas_capacity) == 1 and gas_capacity[0] > 0, sizing
+    if not use_schedule_file and not pvav:
         baseline = json.loads(
             (Path(__file__).parent / "fixtures/vav_sizing_baseline.json").read_text()
         )["cases"]
