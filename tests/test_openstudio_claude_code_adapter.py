@@ -354,7 +354,7 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8")
     assert skill.startswith("---\n")
     assert "name: openstudio-vav-reheat-system-creator\n" in skill
-    assert "description: Create a multi-zone VAV system in an OSM" in skill
+    assert "description: Create a multi-zone VAV reheat system, including the bounded packaged VAV profile" in skill
     assert "version: 0.4.2\n" in skill
     assert "\n---\n\n## Direct script workflow" in skill
 
