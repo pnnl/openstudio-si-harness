@@ -1,0 +1,80 @@
+name: Plugin tools
+
+on:
+  pull_request:
+    paths:
+      - 'packages/plugin-tools/**'
+      - '.github/workflows/plugin-tools.yml'
+      - 'docs/design/plugin-manifest-v0.1.schema.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build distribution and install wheel
+        run: |
+          python -m pip install build==1.3.0 pytest
+          python -m build packages/plugin-tools --outdir "$RUNNER_TEMP/dist"
+          python -m pip install "$RUNNER_TEMP"/dist/*.whl
+      - name: Test installed package outside checkout
+        working-directory: ${{ runner.temp }}
+        run: python -I -m pytest "$GITHUB_WORKSPACE/packages/plugin-tools/tests" --confcutdir="$GITHUB_WORKSPACE/packages/plugin-tools/tests" -q
+      - uses: actions/setup-node@v4
+        if: matrix.python == '3.13'
+        with:
+          node-version: '22'
+      - name: Install pinned host loaders
+        if: matrix.python == '3.13'
+        run: |
+          npm install --prefix "$RUNNER_TEMP/hosts" @anthropic-ai/claude-code@2.1.309 @openai/codex@0.169.0-alpha.11.1 semver@7.7.2
+          echo "$RUNNER_TEMP/hosts/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Check npm range parity and real host loading
+        if: matrix.python == '3.13'
+        env:
+          NODE_PATH: ${{ runner.temp }}/hosts/node_modules
+        working-directory: ${{ runner.temp }}
+        run: python -I "$GITHUB_WORKSPACE/packages/plugin-tools/tests/validate_hosts.py" "$GITHUB_WORKSPACE/packages/plugin-tools/examples/minimal"
+
+  released-core-doctor:
+    name: Released core 0.4.3 doctor isolation
+    runs-on: ubuntu-latest
+    env:
+      CORE_BASELINE_URL: ${{ vars.OPENSTUDIO_SI_CORE_043_WHEEL_URL }}
+      CORE_BASELINE_SHA256: ${{ vars.OPENSTUDIO_SI_CORE_043_WHEEL_SHA256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Obtain pinned released baseline
+        run: |
+          python - <<'PY'
+          import hashlib, os, pathlib, urllib.request
+          url, expected = os.environ['CORE_BASELINE_URL'], os.environ['CORE_BASELINE_SHA256']
+          if not url.startswith('https://') or len(expected) != 64:
+              raise SystemExit('PR A gate pending: configure the released 0.4.3 wheel URL and SHA-256 repository variables. No checkout fallback is allowed.')
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'openstudio_si-0.4.3-py3-none-any.whl'
+          urllib.request.urlretrieve(url, path)
+          assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, 'Baseline hash mismatch'
+          PY
+      - name: Install released runtime and plugin tooling
+        run: python -m pip install "$RUNNER_TEMP/openstudio_si-0.4.3-py3-none-any.whl" ./packages/plugin-tools
+      - name: Compare released doctor with third-party plugins present
+        run: python -I packages/plugin-tools/tests/check_released_core_doctor.py --core-wheel "$RUNNER_TEMP/openstudio_si-0.4.3-py3-none-any.whl" --sha256 "$CORE_BASELINE_SHA256" --example packages/plugin-tools/examples/minimal --report "$RUNNER_TEMP/released-core-doctor.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: released-core-doctor
+          path: ${{ runner.temp }}/released-core-doctor.json
+          if-no-files-found: warn

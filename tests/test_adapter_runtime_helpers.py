@@ -227,3 +227,11 @@ def test_hvac_release_version_precedence():
     assert semver_precedence("0.1.0-rc.2+build.9") < semver_precedence("0.1.0-rc.10")
     assert semver_precedence("0.1.0-rc.10") < semver_precedence("0.1.0")
     assert semver_precedence("0.1.0+build.10") == semver_precedence("0.1.0")
+
+
+def test_hvac_core_ranges_use_npm_prerelease_rules():
+    from harness.plugins import supports_hvac_core
+
+    assert supports_hvac_core("0.4.3+build.2", "0.4.3", "0.5.0")
+    assert not supports_hvac_core("0.5.0-rc.1", "0.4.3", "0.5.0")
+    assert not supports_hvac_core("invalid", "0.4.3", "0.5.0")

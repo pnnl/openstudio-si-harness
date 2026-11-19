@@ -1,0 +1,27 @@
+[project]
+name = "openstudio-si-harness"
+version = "0.1.0"
+description = "Plugin validation and host export tools for OpenStudio SI"
+requires-python = ">=3.10"
+dependencies = [
+    "jsonschema>=4.23,<5",
+    "packaging>=24",
+    "semantic-version>=2.10,<3",
+    "pyyaml>=6.0.2",
+]
+
+[project.scripts]
+openstudio-si-harness = "openstudio_si_harness.cli:main"
+
+[build-system]
+requires = ["hatchling==1.29.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openstudio_si_harness"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "examples", "pyproject.toml", "README.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

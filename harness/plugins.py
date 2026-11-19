@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
+
+from semantic_version import Version
 
 from harness.plugin_sdk import encoded
 from openstudio_si_mcp.compatibility import PLUGIN_CONTRACT_VERSION
@@ -78,43 +79,26 @@ def hvac_release_fingerprint(export_root: Path) -> str:
     return hashlib.sha256(encoded(files)).hexdigest()
 
 
-def semver_precedence(version: str) -> tuple:
-    """Order SemVer releases and prereleases, ignoring build metadata."""
-    match = re.fullmatch(
-        r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-        r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
-        r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?",
-        version,
-    )
-    if match is None:
-        raise ValueError(f"Invalid semantic version: {version}")
-    prerelease = match[4]
-    parts = (
-        [
-            (0, int(part)) if part.isdigit() else (1, part)
-            for part in prerelease.split(".")
-        ]
-        if prerelease
-        else []
-    )
-    return tuple(map(int, match.groups()[:3])), prerelease is None, tuple(parts)
-
-
-def _release_version(version: str | None) -> tuple[int, ...]:
-    if (
-        version is None
-        or re.fullmatch(r"\d+\.\d+\.\d+(?:\+[0-9A-Za-z.-]+)?", version) is None
-    ):
-        return ()
-    return tuple(map(int, version.partition("+")[0].split(".")))
+def semver_precedence(version: str) -> Version:
+    """Order releases using the same SemVer library as public plugin tools."""
+    Version(version)  # Validate build metadata before ignoring it for precedence.
+    return Version(version.partition("+")[0])
 
 
 def supports_hvac_core(version: str | None, minimum: str, before: str) -> bool:
-    return (
-        _release_version(minimum)
-        <= _release_version(version)
-        < _release_version(before)
-    )
+    if version is None:
+        return False
+    try:
+        actual, lower, upper = (
+            semver_precedence(value) for value in (version, minimum, before)
+        )
+        # The legacy HVAC contract uses stable bounds and excludes prereleases.
+        return (
+            not any(value.prerelease for value in (actual, lower, upper))
+            and lower <= actual < upper
+        )
+    except ValueError:
+        return False
 
 
 def read_plugin_descriptor(directory: Path) -> dict[str, Any]:
@@ -131,9 +115,7 @@ def read_plugin_descriptor(directory: Path) -> dict[str, Any]:
     ):
         if not isinstance(data.get(key), str) or not data[key]:
             raise ValueError(f"Missing or invalid {key} in {PLUGIN_DESCRIPTOR}.")
-    if not _release_version(data["core_min"]) or not supports_hvac_core(
-        data["core_min"], data["core_min"], data["core_before"]
-    ):
+    if not supports_hvac_core(data["core_min"], data["core_min"], data["core_before"]):
         raise ValueError(
             "The HVAC plugin descriptor has an invalid core version range."
         )

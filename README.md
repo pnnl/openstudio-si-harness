@@ -462,3 +462,16 @@ The shared loader also rejects missing air- or plant-loop availability lists.
 Their skill-local `prepare_model.py` creates a stable reported working copy, then
 the workflow repeats inventory/preflight with all exact checks intact. See the
 [increment A contract and local verification commands](docs/SDK_INTEGRATION_SUMMARY.md#a--deterministic-inputs-and-explicit-preparation).
+
+## Plugin developer tooling
+
+Step 1 of the external-plugin framework is implemented in
+[packages/plugin-tools](packages/plugin-tools/README.md). The lightweight
+openstudio-si-harness distribution validates plugin identity and dependencies,
+discovers skills and MCP definitions, and exports Codex and Claude Code packages.
+It supports local plugin sources before a GitHub repository exists, filters
+package resources, and verifies exported file hashes. The manifest remains
+draft schema 0.1. The released core/HVAC IDs remain owned by their existing
+exporters. Current MCP launchers support macOS and Linux installed commands.
+See the [minimal source example](packages/plugin-tools/examples/minimal/README.md)
+and the [implementation plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
