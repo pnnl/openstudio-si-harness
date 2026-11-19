@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(
     os.name == "nt", reason="the fake uv is a POSIX shebang script"
 )
 
-SPEC = ["--python", ">=3.10,<3.14", "--from", "openstudio-ai==9.9.9"]
+SPEC = ["--python", ">=3.10,<3.14", "--from", "openstudio-si==9.9.9"]
 
 FAKE_UV = """#!{python}
 import json, os, sys
@@ -69,7 +69,7 @@ def launch(
 def test_cached_runtime_launches_offline(tmp_path: Path, fake_uv: Path) -> None:
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp", "--transport", "stdio"],
+        [*SPEC, "--", "openstudio-si-mcp", "--transport", "stdio"],
         env={"UV": str(fake_uv), "FAKE_UV_CACHED": "1"},
         stdin='{"jsonrpc": "2.0"}\n',
     )
@@ -77,7 +77,7 @@ def test_cached_runtime_launches_offline(tmp_path: Path, fake_uv: Path) -> None:
     probe, server = calls
     assert probe["argv"] == ["tool", "run", "--offline", *SPEC, "python", "-c", ""]
     assert server["argv"] == [
-        "tool", "run", "--offline", *SPEC, "openstudio-ai-mcp", "--transport", "stdio",
+        "tool", "run", "--offline", *SPEC, "openstudio-si-mcp", "--transport", "stdio",
     ]
     # The probe must not consume the host's MCP messages.
     assert probe["stdin"] == ""
@@ -88,19 +88,19 @@ def test_cached_runtime_launches_offline(tmp_path: Path, fake_uv: Path) -> None:
 def test_cold_cache_falls_back_to_an_online_launch(tmp_path: Path, fake_uv: Path) -> None:
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp"],
+        [*SPEC, "--", "openstudio-si-mcp"],
         env={"UV": str(fake_uv), "FAKE_UV_CACHED": "0"},
     )
     assert result.returncode == 0, result.stderr
     assert [call["probe"] for call in calls] == [True, False]
-    assert calls[1]["argv"] == ["tool", "run", *SPEC, "openstudio-ai-mcp"]
+    assert calls[1]["argv"] == ["tool", "run", *SPEC, "openstudio-si-mcp"]
     assert "not in uv's cache" in result.stderr
 
 
 def test_server_exit_code_is_preserved(tmp_path: Path, fake_uv: Path) -> None:
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp"],
+        [*SPEC, "--", "openstudio-si-mcp"],
         env={"UV": str(fake_uv), "FAKE_UV_CACHED": "1", "FAKE_UV_EXIT": "3"},
     )
     assert result.returncode == 3
@@ -111,7 +111,7 @@ def test_server_exit_code_is_preserved(tmp_path: Path, fake_uv: Path) -> None:
 def test_uv_is_found_on_path_when_uv_env_is_unset(tmp_path: Path, fake_uv: Path) -> None:
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp"],
+        [*SPEC, "--", "openstudio-si-mcp"],
         env={"PATH": str(fake_uv.parent), "FAKE_UV_CACHED": "1"},
     )
     assert result.returncode == 0, result.stderr
@@ -120,7 +120,7 @@ def test_uv_is_found_on_path_when_uv_env_is_unset(tmp_path: Path, fake_uv: Path)
 
 def test_missing_uv_fails_clearly(tmp_path: Path) -> None:
     result, calls = launch(
-        tmp_path, [*SPEC, "--", "openstudio-ai-mcp"], env={"PATH": str(tmp_path)}
+        tmp_path, [*SPEC, "--", "openstudio-si-mcp"], env={"PATH": str(tmp_path)}
     )
     assert result.returncode == 127
     assert "`uv` was not found" in result.stderr
@@ -143,7 +143,7 @@ def test_project_modules_cannot_shadow_the_launcher_imports(
     (project / "subprocess.py").write_text("raise SystemExit('shadowed')\n")
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp"],
+        [*SPEC, "--", "openstudio-si-mcp"],
         env={"UV": str(fake_uv), "FAKE_UV_CACHED": "1"},
         cwd=project,
     )
@@ -154,7 +154,7 @@ def test_project_modules_cannot_shadow_the_launcher_imports(
 def test_uv_env_pointing_at_a_missing_file_fails_clearly(tmp_path: Path) -> None:
     result, calls = launch(
         tmp_path,
-        [*SPEC, "--", "openstudio-ai-mcp"],
+        [*SPEC, "--", "openstudio-si-mcp"],
         env={"UV": str(tmp_path / "missing-uv")},
     )
     assert result.returncode == 127
@@ -166,7 +166,7 @@ def test_uv_env_pointing_at_a_missing_file_fails_clearly(tmp_path: Path) -> None
 def test_options_without_from_spec_are_rejected(tmp_path: Path, fake_uv: Path) -> None:
     result, calls = launch(
         tmp_path,
-        ["--python", ">=3.10,<3.14", "--", "openstudio-ai-mcp"],
+        ["--python", ">=3.10,<3.14", "--", "openstudio-si-mcp"],
         env={"UV": str(fake_uv)},
     )
     assert result.returncode == 2

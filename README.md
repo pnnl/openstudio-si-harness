@@ -1,15 +1,20 @@
-# OpenStudio AI Harness
+# OpenStudio SI Harness
 
-OpenStudio AI Harness packages a local MCP runtime, host adapters, skills,
-knowledge, and workflow-state tools for AI-assisted building-energy modeling.
+OpenStudio SI Harness packages a local MCP runtime, host adapters, skills,
+knowledge, and workflow-state tools for SI-assisted building-energy modeling.
 
-Release preparation: **0.4.1**, using MCP plugin/runtime contract **6.0** and
-OpenStudio **3.11.0**. Refresh both the runtime and exported host plugin together;
-contract compatibility requires an exact match. See the
-[release guide](docs/RELEASE.md) for validation and publication steps.
+The SI rename uses package version **0.4.2**, MCP plugin/runtime contract **6.0**,
+and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
+See the [release guide](docs/RELEASE.md) for publication and cutover steps.
+
+Terminal and plant equipment coverage through phases 11–13 is reviewed.
+See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
 
 ## Current Capabilities
 
+- Boiler, district-capacity, terminal-control, terminal-replacement and tower edits
+  validate initially empty weather metadata against the reviewed companion EPW;
+  changed resources, weather metadata and plan tampering remain rejected.
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
   runtime storage, MCP-backed blackboard workflow state, and downloadable
   self-contained OSM geometry viewers.
@@ -42,6 +47,64 @@ contract compatibility requires an exact match. See the
   source trace, supported arrangements and verification. CAV requires
   an explicit outdoor-air choice and aligns 100% OA operation with coil sizing;
   approved CAV plans must be regenerated after this correction.
+- `openstudio-district-capacity-editor` edits one existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal watts or explicit Autosize
+  in place. Retain schedule, connections, controls and identity. Plans expose the
+  retained capacity-fraction schedule, dispatch sharing, loop conditions and
+  temperature protection (including at fraction 0). Capacity changes are not
+  COP/efficiency or proportional pump-flow savings. Steam needs separate coverage.
+- `openstudio-tower-performance-editor` edits one condenser-loop variable-speed
+  cooling tower's total design fan watts/Autosize, minimum fan-airflow ratio or
+  free-convection capacity fraction in place. Curves, design conditions, water
+  connections and unrequested inputs stay unchanged. Plans flag airflow sizing,
+  cycling, fan-off cooling and water use. Native evidence separates power-only
+  behavior from low-load controls and reports pump/chiller energy alongside fan
+  electricity; fan-off does not mean pump-off or guaranteed whole-plant savings.
+- `openstudio-chiller-performance-editor` edits one air- or water-cooled electric
+  EIR chiller's explicit COP, cooling capacity (watts/Autosize), part-load or
+  unloading limits in
+  place. Curves, unrequested sizing/flow inputs, condenser circuits, controls and
+  identities stay unchanged. Capacity affects PLR, dispatch and delivered cooling;
+  plans report reference dispatch limits and flag separate condenser fan power
+  scaling when its retained power ratio is positive. Plans flag autosized
+  condenser pumps/towers whose calculated sizes and energy may change. Heat recovery, thermosiphon and other
+  classes need separate coverage. Reference COP is not seasonal or whole-plant
+  efficiency; changed condenser heat can change calculated condenser sizing.
+- `openstudio-boiler-performance-editor` edits one heating-plant hot-water boiler's
+  explicit nominal thermal capacity/Autosize, minimum/maximum/optimum part-load
+  ratios, HHV efficiency and electric/fuel
+  parasitics in place. Fuel, flow sizing policy, curves, sizing factor, other controls and
+  identities stay unchanged; unrequested capacity stays exact. Capacity affects
+  dispatch, PLR, curve/parasitic energy and possibly unmet loads, not just a limit.
+  Plans expose curve/EMS/dispatch dependencies and detect configured curves omitted
+  by translation. See the [12a checkpoint](docs/HVAC_MODULARIZATION_WORK.md#phase-12a-boiler-performance-editor--october-21-2026).
+- Explicit Autosize in boiler, chiller, tower and district editors reports design-day/period
+  counts and the effective translated plant-sizing flag. Missing/off/unverified
+  sizing keeps the edit available but marks simulation unready. This is conservative:
+  some fixed-flow cases still size without a plant-sizing run. Multi-boiler Autosize
+  exposes other capacities/factors and warns that each boiler receives the whole
+  design load times its own factor, rather than an automatic share.
+- `openstudio-terminal-replacer` converts one connected single-duct VAV no-reheat
+  terminal to constant-volume no-reheat, or the reverse. Explicit maximum-flow
+  and VAV minimum-fraction choices accompany retained zone service, boundary
+  nodes, availability and zone/system sizing. The terminal gets a new identity;
+  direct references and unsupported controls block conversion. Review overcooling
+  and ventilation before simulation. Plans identify retained fan classes and VRP
+  sizing dependencies; preserved inputs do not promise unchanged calculated OA.
+  Reheat conversions remain separate. See the
+  [release review summary](docs/reviews/SUMMARY.md).
+- The VAV creator's `prototype_pvav_v1` profile adds packaged VAV with gas
+  central heat, approved two-speed DX cooling, and electric terminal reheat.
+  It uses the same reviewed preflight and saved-model checks as VAV reheat.
+- `openstudio-terminal-editor` edits one connected VAV reheat/no-reheat terminal's
+  Constant-method minimum fraction or applicable reheat controls in place,
+  including terminals in the prototype CAV recipe. It preserves equipment,
+  references, schedules, connections and unrequested sizing; saved checks verify
+  the requested EnergyPlus fields. Plans expose ventilation, turndown/EMS and
+  sizing dependencies. At the pinned engine, fraction-limit edits require the
+  per-area field at Autocalculate; an Autosize reset must be explicitly chosen.
+  Numeric per-area limits are unsupported and retained ignored limits warn.
+  Terminal replacement and coil-rating changes are separate.
 - The independent `openstudio-supply-fan-performance-editor` skill edits explicit
   efficiency/pressure values on a selected air loop's direct constant- or
   variable-volume fan in place. Fan, connection, metadata and reference handles
@@ -134,7 +197,7 @@ contract compatibility requires an exact match. See the
   native design-day checks cover three plant-to-VAV configurations. See the
   [supported assumptions and verification](docs/SKILL_BOUND_SDK_SUMMARY.md#plant-creation-and-hvac-removal-extension).
 - Unexpected execution failures route to `report-openstudio-failure`, which
-  automatically submits sanitized diagnostics to `pnnl/openstudio-ai-harness`.
+  automatically submits sanitized diagnostics to `pnnl/openstudio-si-harness`.
   Issues are created under your own authenticated GitHub account.
   Original exception text stays local; public errors use fixed messages and
   plugin file/function/line locations.
@@ -145,7 +208,12 @@ contract compatibility requires an exact match. See the
 - Skill resource export for both hosts, with one plugin-local `sdk/` library
   and fixed launchers in owning skills. Install or move the complete plugin;
   no separate shared package is required. Export records size evidence and
-  enforces a 1 MiB SDK-resource budget. See the [packaging contract and review commands](docs/SDK_INTEGRATION_SUMMARY.md#b--shared-sdk-packaging).
+  enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. Shared guides
+  and schemas live once under `sdk/`; exported skill links stay inside the plugin.
+  Markdown participates in bundle integrity, so documentation edits require a
+  matching full export. See the [release review summary](docs/reviews/SUMMARY.md).
+  Earlier 0.4.1 exports omitted some declared HVAC guides; regenerate from the
+  updated harness and refresh the complete plugin to repair those links.
   This package pins OpenStudio 3.11.0 consistently in its dependency,
   lock metadata and exported compatibility contract. SDK skills include a
   grouped assumption review with editable inputs and visible fixed controls;
@@ -205,37 +273,42 @@ python -m playwright install chromium
 The production harness supports Python 3.10 or newer. The `dev` extra installs
 its test and release tools.
 
+Publishing runs fast checks and one paired plugin-export smoke test. Full
+pull-request/manual CI retains the slower modeling, simulation, browser and
+packaging checks. See [test suite selections](tests/README.md) for commands and
+timing reports.
+
 Install the runtime package after it is published:
 
 ```bash
-python -m pip install openstudio-ai
-openstudio-ai install-runtime
-openstudio-ai doctor
-openstudio-ai-mcp --transport stdio
+python -m pip install openstudio-si
+openstudio-si install-runtime
+openstudio-si doctor
+openstudio-si-mcp --transport stdio
 ```
 
-OpenStudio AI requires both the PyPI `openstudio` Python package, installed as
-a dependency of `openstudio-ai`, and the native OpenStudio application/CLI. Set
+OpenStudio SI requires both the PyPI `openstudio` Python package, installed as
+a dependency of `openstudio-si`, and the native OpenStudio application/CLI. Set
 `OPENSTUDIO_PATH` when the CLI is not on `PATH` or when selecting a specific
 installation. Alternatively, after confirming the executable, save it for
 future Claude Code and Codex MCP launches with:
 
 ```bash
-openstudio-ai configure-openstudio --path /path/to/openstudio
+openstudio-si configure-openstudio --path /path/to/openstudio
 ```
 
-`openstudio-ai doctor` reports **core plugin readiness** only when the Python
+`openstudio-si doctor` reports **core plugin readiness** only when the Python
 runtime, MCP command, native OpenStudio executable, and plugin compatibility
 are ready for energy modeling. Optional integrations such as NLR OpenStudio-MCP
 are reported separately and do not block core readiness. NLR discovery accepts
 `openstudio-mcp` in Codex or Claude project configuration. Detection means
 configured; verify NLR status/version through
 the connected server before modeling. PNNL’s foundational MCP advertises
-`openstudio-ai-mcp` and uses the host connection name `openstudio_ai`.
+`openstudio-si-mcp` and uses the host connection name `openstudio_si`.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
-AUTOMA-AI or Streamlit. The standalone local AI app is a separate optional
+AUTOMA-AI or Streamlit. The standalone local SI app is a separate optional
 development environment that also supports Python 3.10+:
 
 ```bash
@@ -265,15 +338,15 @@ python -m pytest -q \
 Start the MCP server in stdio mode:
 
 ```bash
-openstudio-ai-mcp --transport stdio
+openstudio-si-mcp --transport stdio
 ```
 
 Curate local learning outside an active modeling session:
 
 ```bash
-openstudio-ai learning curate
-openstudio-ai learning propose-measures
-openstudio-ai learning prune-preview
+openstudio-si learning curate
+openstudio-si learning propose-measures
+openstudio-si learning prune-preview
 ```
 
 These commands never approve a candidate or delete one without explicit user
@@ -282,24 +355,24 @@ action.
 Export local development plugins:
 
 ```bash
-openstudio-ai export claude \
-  --output-dir /tmp/openstudio-ai-claude-plugin \
+openstudio-si export claude \
+  --output-dir /tmp/openstudio-si-claude-plugin \
   --runtime-mode local
 
-openstudio-ai export codex \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
+openstudio-si export codex \
+  --output-dir /tmp/openstudio-si-codex-plugin \
   --runtime-mode local
 ```
 
 Export marketplace-oriented plugins that expect an installed runtime command:
 
 ```bash
-openstudio-ai export claude \
-  --output-dir /tmp/openstudio-ai-claude-plugin \
+openstudio-si export claude \
+  --output-dir /tmp/openstudio-si-claude-plugin \
   --runtime-mode marketplace
 
-openstudio-ai export codex \
-  --output-dir /tmp/openstudio-ai-codex-plugin \
+openstudio-si export codex \
+  --output-dir /tmp/openstudio-si-codex-plugin \
   --runtime-mode marketplace
 ```
 
@@ -307,8 +380,8 @@ Export a publishable repository containing both host packages, generated install
 guides, and source provenance:
 
 ```bash
-openstudio-ai export marketplace \
-  --output-dir /path/to/openstudio-ai-plugins \
+openstudio-si export marketplace \
+  --output-dir /path/to/openstudio-si-plugins \
   --runtime-mode marketplace \
   --force
 ```
@@ -317,12 +390,12 @@ This produces a generated release tree; it validates both exports before
 completion. Keep the harness repository as the source of truth and do not edit
 generated plugin files directly.
 
-For development exports from this checkout, use `.venv/bin/openstudio-ai`
+For development exports from this checkout, use `.venv/bin/openstudio-si`
 (or activate the repository virtualenv) so the command uses the current adapter
 code. An older pipx-installed command can combine older generated setup/helpers
 with this checkout's skill files; `--workspace-root` selects assets, not the
-installed exporter code. Both exports configure PNNL as `openstudio_ai` launching
-`openstudio-ai-mcp` (through a pinned `uvx` spec in marketplace mode); NLR setup
+installed exporter code. Both exports configure PNNL as `openstudio_si` launching
+`openstudio-si-mcp` (through a pinned `uvx` spec in marketplace mode); NLR setup
 uses `openstudio-mcp`. PNNL workflow records use
 `nlr_openstudio` as their stable provider identifier, separate from the host
 connection name.
@@ -332,7 +405,7 @@ modeler policy to each Codex project that should route plain-language
 OpenStudio requests through the workflow orchestrator:
 
 ```bash
-openstudio-ai install codex --target-dir /path/to/codex-project
+openstudio-si install codex --target-dir /path/to/codex-project
 ```
 
 This creates `AGENTS.md` when it does not exist. Use `--dry-run` to preview;
@@ -356,8 +429,8 @@ is appended.
 
 Local runtime state is intentionally ignored by Git:
 
-- `.openstudio_ai_mcp_workspace/`
-- `.openstudio_ai_blackboards/`
+- `.openstudio_si_mcp_workspace/`
+- `.openstudio_si_blackboards/`
 - `logs/`
 - `outputs/`
 

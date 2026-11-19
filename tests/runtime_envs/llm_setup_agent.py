@@ -1,7 +1,7 @@
 """Drive the exported setup skill with a real model inside a runtime environment.
 
 The model plays the host agent (Claude Code / Codex): it receives the exported
-``setup-openstudio-ai`` SKILL.md and a shell tool that runs inside the
+``setup-openstudio-si`` SKILL.md and a shell tool that runs inside the
 container. The user is simulated: every approval request is granted and logged
 so tests can check that the skill's approval gates were honored.
 
@@ -33,7 +33,7 @@ MAX_TURNS = int(os.getenv("LLM_AGENT_MAX_TURNS", "30"))
 OUTPUT_LIMIT = 6000
 COMMAND_TIMEOUT_S = 900
 
-SKILL_PATH = "claude/openstudio-ai/skills/setup-openstudio-ai/SKILL.md"
+SKILL_PATH = "claude/openstudio-si/skills/setup-openstudio-si/SKILL.md"
 
 
 def load_llm_settings() -> dict[str, str] | None:
@@ -110,7 +110,7 @@ TOOLS = [
 
 SYSTEM_PROMPT = """\
 You are the AI host agent for an energy modeler who just installed the
-OpenStudio AI marketplace plugin. The user asked you to run its setup skill.
+OpenStudio SI marketplace plugin. The user asked you to run its setup skill.
 
 Follow the skill instructions below exactly. You act only through tools:
 - run_shell runs commands in the user's terminal on their machine.
@@ -121,7 +121,7 @@ You cannot reload or restart the host application yourself; when the skill says
 to reload, tell the user in your summary. Do not edit plugin files. The plugin
 files are at {plugin_dir} (read-only).
 
-<skill name="setup-openstudio-ai">
+<skill name="setup-openstudio-si">
 {skill}
 </skill>
 """
@@ -167,7 +167,7 @@ def run_setup_agent(
     env: RuntimeEnv,
     settings: dict[str, str],
     *,
-    user_request: str = "Please set up OpenStudio AI on my machine.",
+    user_request: str = "Please set up OpenStudio SI on my machine.",
     shell_env: dict[str, str] | None = None,
 ) -> AgentTranscript:
     import openai
@@ -179,7 +179,7 @@ def run_setup_agent(
             "role": "system",
             "content": SYSTEM_PROMPT.format(
                 skill=skill,
-                plugin_dir=f"{EXPORT_ROOT}/release-sim/claude/openstudio-ai",
+                plugin_dir=f"{EXPORT_ROOT}/release-sim/claude/openstudio-si",
             ),
         },
         {"role": "user", "content": user_request},

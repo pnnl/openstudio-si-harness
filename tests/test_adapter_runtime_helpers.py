@@ -21,7 +21,7 @@ from adapters.runtime_helpers import (
     runtime_uvx_command,
     runtime_uvx_options,
 )
-from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+from openstudio_si_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
 
 
 @pytest.mark.parametrize("host", ["codex", "claude", "claude_parent"])
@@ -77,12 +77,12 @@ def test_nlr_discovery_names(
 def test_marketplace_uvx_pin_matches_lockfile() -> None:
     lock = (Path(__file__).resolve().parents[1] / "uv.lock").read_text(encoding="utf-8")
     assert f'name = "openstudio"\nversion = "{OPENSTUDIO_PYTHON_SDK_VERSION}"' in lock
-    assert runtime_uvx_args("openstudio-ai-mcp")[-3:] == [
+    assert runtime_uvx_args("openstudio-si-mcp")[-3:] == [
         "--with",
         f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
-        "openstudio-ai-mcp",
+        "openstudio-si-mcp",
     ]
-    assert f"openstudio-ai=={package_version()}" in runtime_uvx_args("openstudio-ai")
+    assert f"openstudio-si=={package_version()}" in runtime_uvx_args("openstudio-si")
 
 
 def test_runtime_python_range_matches_requires_python() -> None:
@@ -93,10 +93,10 @@ def test_runtime_python_range_matches_requires_python() -> None:
     )
     assert 'requires-python = ">=3.10"' in pyproject
     assert RUNTIME_PYTHON_VERSION == ">=3.10,<3.14"
-    args = runtime_uvx_args("openstudio-ai")
+    args = runtime_uvx_args("openstudio-si")
     assert args[args.index("--python") + 1] == RUNTIME_PYTHON_VERSION
     # The copyable shell command must quote the range so `<` is not a redirect.
-    assert "--python '>=3.10,<3.14'" in runtime_uvx_command("openstudio-ai", "doctor")
+    assert "--python '>=3.10,<3.14'" in runtime_uvx_command("openstudio-si", "doctor")
 
 
 def test_marketplace_mcp_args_run_the_launcher_with_the_pinned_spec() -> None:
@@ -105,12 +105,12 @@ def test_marketplace_mcp_args_run_the_launcher_with_the_pinned_spec() -> None:
         "--python",
         RUNTIME_PYTHON_VERSION,
         "--from",
-        f"openstudio-ai=={package_version()}",
+        f"openstudio-si=={package_version()}",
         "--with",
         f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
     ]
     assert runtime_uvx_options() == options
-    assert runtime_uvx_args("openstudio-ai-mcp") == [*options, "openstudio-ai-mcp"]
+    assert runtime_uvx_args("openstudio-si-mcp") == [*options, "openstudio-si-mcp"]
     assert args == [
         "run",
         "--no-project",
@@ -122,13 +122,13 @@ def test_marketplace_mcp_args_run_the_launcher_with_the_pinned_spec() -> None:
         mcp_launcher_source(),
         *options,
         "--",
-        "openstudio-ai-mcp",
+        "openstudio-si-mcp",
         "--transport",
         "stdio",
     ]
     assert marketplace_runtime_spec(args) == options
     historical = marketplace_mcp_args(version="0.0.1")
-    assert "openstudio-ai==0.0.1" in marketplace_runtime_spec(historical)
+    assert "openstudio-si==0.0.1" in marketplace_runtime_spec(historical)
 
 
 def test_marketplace_mcp_command_line_fits_windows_limits() -> None:
@@ -185,15 +185,15 @@ def test_triage_does_not_treat_fresh_storage_as_a_stale_runtime() -> None:
 
 
 def test_offline_flag_precedes_the_console_script() -> None:
-    argv = shlex.split(runtime_uvx_command("openstudio-ai", "doctor", offline=True))
+    argv = shlex.split(runtime_uvx_command("openstudio-si", "doctor", offline=True))
     assert argv[:2] == ["uvx", "--offline"]
-    assert argv.index("--offline") < argv.index("openstudio-ai")
+    assert argv.index("--offline") < argv.index("openstudio-si")
     assert argv.count("--offline") == 1
     both = shlex.split(
-        runtime_uvx_command("openstudio-ai", "install-runtime", offline=True, reinstall=True)
+        runtime_uvx_command("openstudio-si", "install-runtime", offline=True, reinstall=True)
     )
     assert both[:3] == ["uvx", "--offline", "--reinstall"]
-    assert "--offline" not in shlex.split(runtime_uvx_command("openstudio-ai", "doctor"))
+    assert "--offline" not in shlex.split(runtime_uvx_command("openstudio-si", "doctor"))
 
 
 def test_triage_tells_agent_to_retry_offline_when_uvx_cannot_start() -> None:
@@ -202,7 +202,7 @@ def test_triage_tells_agent_to_retry_offline_when_uvx_cannot_start() -> None:
     # hint must not be tied to a diagnostic code.
     assert "before printing a result" in text
     assert runtime_doctor_command(offline=True) in text
-    assert runtime_uvx_command("openstudio-ai", "install-runtime", offline=True) in text
+    assert runtime_uvx_command("openstudio-si", "install-runtime", offline=True) in text
     # A shell-specific prefix would fail in Windows cmd and PowerShell.
     assert "UV_OFFLINE" not in text
 
@@ -221,10 +221,10 @@ def test_doctor_hints_match_the_installation_mode(monkeypatch, launched_by_uvx) 
     command = cli._runtime_command("install-runtime")
     if launched_by_uvx:
         assert command.startswith("uvx --python ")
-        assert command.endswith(" openstudio-ai install-runtime")
+        assert command.endswith(" openstudio-si install-runtime")
         assert "--reinstall" in cli._reinstall_hint()
     else:
-        assert command == "openstudio-ai install-runtime"
+        assert command == "openstudio-si install-runtime"
 
 
 @pytest.mark.parametrize(
@@ -232,7 +232,7 @@ def test_doctor_hints_match_the_installation_mode(monkeypatch, launched_by_uvx) 
     [
         ("/home/u/.cache/uv/archive-v0/AbC123", "/usr/bin/uv", True),
         ("/home/u/.cache/uv/archive-v0/AbC123", None, False),
-        ("/home/u/.local/pipx/venvs/openstudio-ai", "/usr/bin/uv", False),
+        ("/home/u/.local/pipx/venvs/openstudio-si", "/usr/bin/uv", False),
     ],
 )
 def test_uvx_launch_detection(monkeypatch, prefix, uv_env, expected) -> None:
@@ -249,7 +249,7 @@ def _checks(sdk_version: str, cli_version: str) -> dict:
         "python": {"supported": True},
         "plugin_compatibility": {"ok": True, "status": "compatible"},
         "commands": {
-            "openstudio_ai_mcp": {"available": True, "help_probe": {"ok": True}}
+            "openstudio_si_mcp": {"available": True, "help_probe": {"ok": True}}
         },
         "mcp_startup": {"ok": True},
         "runtime_storage": {"ok": True},

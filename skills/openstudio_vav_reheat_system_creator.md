@@ -2,7 +2,7 @@
 name: openstudio_vav_reheat_system_creator
 description: Create a multi-zone VAV system in an OSM using bundled, version-pinned scripts and saved-model topology validation.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
   output_format: markdown_with_json_summary
 ---
 
@@ -37,7 +37,7 @@ bundle applies when NLR is absent/unavailable/incompatible or its documented
 fallback records that it cannot cover the request. Preserve the provider
 transition and host-visible model path before local SDK execution.
 
-Run this skill's scripts through host tools, independently of OpenStudio AI's
+Run this skill's scripts through host tools, independently of OpenStudio SI's
 runtime or measure registry. Claude Code resolves `${CLAUDE_SKILL_DIR}`; Codex
 uses this `SKILL.md`'s actual directory. Run implementation files without reading
 them into context. Do not load SDK wiki packs for this supported workflow.
@@ -100,6 +100,27 @@ assumption ledgers stay on disk. Unready summaries show at most eight candidates
 per category, total counts, and a truncation marker. Use `--candidate-filter`
 with a name fragment or read the full report only for the relevant selection.
 `report.py` remains a troubleshooting utility for old logs, not the normal flow.
+
+## Energy code basis
+
+Applies only when the user names a code ("per 90.1-2019", "IECC-compliant",
+"code minimum"). Otherwise skip this section and keep current behavior.
+
+- Load `query-energy-standards` before preparing the configuration JSON. Confirm
+  `standard`, `template` (for example `90.1-2019`), `climate_zone`, and `path`
+  (`prescriptive` or `appendix_g`) with the user instead of assuming them.
+- Resolve, as relevant: fan power or efficiency limits, air economizer
+  requirement and control type, and energy recovery requirement. DX cooling
+  efficiency applies only when the human approved DX (`dx_approved: true`).
+- Write each resolved value into the matching configuration field from the
+  input schema, and record its source, for example
+  `fan.total_efficiency: set to 0.62 from hvac_minimum_requirements_fans, template 90.1-2019`.
+- Convert code metrics (EER, kW/ton, IPLV, fan kW per cfm) to the schema's units
+  before writing them, and record the conversion.
+- If the `building_energy_standards` tools are unavailable or return no matching
+  row, say so and ask the user for the value. Never invent a code value.
+- Hot-water and chilled-water plant equipment efficiency belongs to the
+  plant-loop skill, not this one.
 
 ## Supported inputs and assumptions
 

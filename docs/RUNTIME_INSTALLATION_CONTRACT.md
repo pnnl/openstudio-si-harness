@@ -1,7 +1,7 @@
-# OpenStudio AI Runtime Installation Contract
+# OpenStudio SI Runtime Installation Contract
 
 This contract defines what a Claude, Codex, or future host plugin may assume
-about the local OpenStudio AI runtime.
+about the local OpenStudio SI runtime.
 
 ## Required Command
 
@@ -10,17 +10,17 @@ the user's `PATH`; `marketplace` plugins launch it through `uvx` with an exact
 package spec (see Adapter Runtime Modes):
 
 ```bash
-openstudio-ai-mcp
+openstudio-si-mcp
 ```
 
-The command must start the OpenStudio AI MCP server. The plugin connects to it
+The command must start the OpenStudio SI MCP server. The plugin connects to it
 with stdio:
 
 ```json
 {
   "mcpServers": {
-    "openstudio_ai": {
-      "command": "openstudio-ai-mcp",
+    "openstudio_si": {
+      "command": "openstudio-si-mcp",
       "args": ["--transport", "stdio"]
     }
   }
@@ -32,23 +32,23 @@ with stdio:
 The runtime package provides:
 
 ```bash
-openstudio-ai doctor
-openstudio-ai install-runtime
-openstudio-ai repair
+openstudio-si doctor
+openstudio-si install-runtime
+openstudio-si repair
 ```
 
 ## Plugin And Runtime Compatibility
 
-An OpenStudio AI plugin contains skills that call MCP tools. A newer plugin can
+An OpenStudio SI plugin contains skills that call MCP tools. A newer plugin can
 therefore require MCP tool names or argument shapes that an older runtime does
 not provide. Plugin exports include these MCP environment fields:
 
 ```text
-OPENSTUDIO_AI_PLUGIN_VERSION
-OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION
+OPENSTUDIO_SI_PLUGIN_VERSION
+OPENSTUDIO_SI_PLUGIN_CONTRACT_VERSION
 ```
 
-Release **0.4.1** declares contract **`6.0`**. The package version identifies the
+Release **0.4.2** declares contract **`6.0`**. The package version identifies the
 release; the contract version identifies the plugin-to-MCP interface baseline.
 Contract strings are compared exactly: `5` and `6` do not match `6.0`. A runtime
 starts when the contract differs, reports a compatibility notice, and continues
@@ -68,7 +68,7 @@ workflow, or SQL commands when the tool or MCP reconnection is unavailable.
 Marketplace doctor helpers run:
 
 ```bash
-openstudio-ai doctor \
+openstudio-si doctor \
   --plugin-version <plugin-version> \
   --plugin-contract-version <contract-version>
 ```
@@ -89,20 +89,20 @@ blocks both `plugin_ready` and `core_ready`. An undeclared contract produces a
 warning that compatibility cannot be verified, but does not block readiness so
 existing marketplace exports without contract metadata remain usable.
 
-`openstudio-ai doctor` returns exit code `0` only when `core_ready` is true. It
+`openstudio-si doctor` returns exit code `0` only when `core_ready` is true. It
 returns `1` when a core readiness check fails, including a contract mismatch or
 a missing/unusable native OpenStudio CLI. Setup automation must treat a
 nonzero exit code as not ready for energy modeling; optional MCP capabilities
 such as NLR do not affect this result.
 
-`openstudio-ai validate-export` validates the structure and presence of
+`openstudio-si validate-export` validates the structure and presence of
 compatibility metadata for any export by default. Use
 `--strict-runtime-version` only when an artifact must match the currently
 installed runtime exactly.
 
 Expected behavior:
 
-- `openstudio-ai doctor`: checks Python, MCP startup, initialized runtime
+- `openstudio-si doctor`: checks Python, MCP startup, initialized runtime
   storage, SQLite support, package assets, measure registry, and a bounded gzip
   health probe against the resolved versioned SDK documentation bundle. The JSON
   result reports the SDK docs source, path, selected version, and header
@@ -112,15 +112,15 @@ Expected behavior:
   OpenStudio Python SDK availability, native OpenStudio CLI availability, and
   basic simulation readiness.
 
-OpenStudio AI has a two-part OpenStudio prerequisite:
+OpenStudio SI has a two-part OpenStudio prerequisite:
 
 1. the PyPI `openstudio` Python package, installed as a required dependency of
-   `openstudio-ai`;
+   `openstudio-si`;
 2. the native OpenStudio application/CLI, resolved through `OPENSTUDIO_PATH`, a
-   user-confirmed path saved by `openstudio-ai configure-openstudio`, or `PATH`.
+   user-confirmed path saved by `openstudio-si configure-openstudio`, or `PATH`.
 
 The MCP runtime resolves an executable `OPENSTUDIO_PATH` first. If it is unset,
-it resolves the user-confirmed path saved by `openstudio-ai configure-openstudio`.
+it resolves the user-confirmed path saved by `openstudio-si configure-openstudio`.
 Finally, it resolves `openstudio` from the MCP server's `PATH` using
 `shutil.which("openstudio")`. Use the environment variable to select a
 temporary or externally managed override; use `configure-openstudio` to persist
@@ -132,10 +132,10 @@ the host shell. When unavailable, the simulation workflow performs read-only
 platform-specific discovery before offering installation guidance.
 Other runtime commands:
 
-- `openstudio-ai install-runtime`: creates OpenStudio AI's user-local data folder
+- `openstudio-si install-runtime`: creates OpenStudio SI's user-local data folder
   and prints next steps. It does not install the package: in marketplace mode,
   running it through `uvx` is what downloads the pinned runtime into uv's cache.
-- `openstudio-ai repair`: attempts non-destructive fixes such as rebuilding
+- `openstudio-si repair`: attempts non-destructive fixes such as rebuilding
   indexes, recreating runtime folders, and explaining missing prerequisites.
 
 ## Adapter Runtime Modes
@@ -144,16 +144,16 @@ Adapters must support three runtime modes:
 
 | Mode | MCP command | Intended use |
 | --- | --- | --- |
-| `local` | current Python executable with `-m openstudio_ai_mcp.server` | Developer checkout testing. |
-| `installed` | `openstudio-ai-mcp` | User or enterprise already installed the runtime. |
-| `marketplace` | `uv run --no-project --python ">=3.10,<3.14" python -I -c <launcher> --python ">=3.10,<3.14" --from openstudio-ai==<plugin-version> --with openstudio==<sdk-version> -- openstudio-ai-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
+| `local` | current Python executable with `-m openstudio_si_mcp.server` | Developer checkout testing. |
+| `installed` | `openstudio-si-mcp` | User or enterprise already installed the runtime. |
+| `marketplace` | `uv run --no-project --python ">=3.10,<3.14" python -I -c <launcher> --python ">=3.10,<3.14" --from openstudio-si==<plugin-version> --with openstudio==<sdk-version> -- openstudio-si-mcp` plus setup skills | Marketplace/no-code onboarding. Requires only uv. |
 
 `local` mode may reference a source checkout. `installed` and `marketplace`
 mode must not require a developer path such as `/Users/...`.
 
 Marketplace mode pins the runtime release to the plugin version, so the plugin
 and runtime contracts match as long as that version is a distinct release.
-Publish the matching `openstudio-ai` release to PyPI before publishing the
+Publish the matching `openstudio-si` release to PyPI before publishing the
 plugin export, and bump the package version for every release that changes
 runtime behavior or the MCP contract: an export whose pinned version already
 exists on PyPI launches that existing release, not the code it was exported
@@ -175,7 +175,7 @@ standard-library imports.
 
 `validate-export --runtime-mode marketplace` checks the complete launcher
 argument list. It accepts an older export only when its `--from` pin matches the
-`OPENSTUDIO_AI_PLUGIN_VERSION` it declares; `--strict-runtime-version` requires
+`OPENSTUDIO_SI_PLUGIN_VERSION` it declares; `--strict-runtime-version` requires
 the current release.
 
 ### Network and offline behavior
@@ -202,26 +202,26 @@ With an empty cache and no network, a launch fails after uv's retries (about
 
 ### Migrating from pipx or pip installs
 
-Older setup flows installed `openstudio-ai` with pipx or pip. Marketplace
-plugins no longer use that installation, but its `openstudio-ai` command can
-remain on PATH and report an older version from a terminal. Users can remove it
-with `pipx uninstall openstudio-ai` (or `pip uninstall openstudio-ai`) once the
+Older setup flows installed the runtime with pipx or pip under its pre-rename
+name, `openstudio-ai`. Marketplace plugins no longer use that installation, but
+its `openstudio-ai` command can remain on PATH and report an older version from
+a terminal. Users can remove it with `pipx uninstall openstudio-ai` (or `pip uninstall openstudio-ai`) once the
 `uvx` setup reports `core_ready: true`.
 
 ## Marketplace Setup Contract
 
-Marketplace exports must include setup files that let an AI host guide a
+Marketplace exports must include setup files that let an SI host guide a
 non-programmer through installation.
 
 Claude Code marketplace exports place setup as Claude-native skills:
 
 ```text
 skills/
-  setup-openstudio-ai/
+  setup-openstudio-si/
     SKILL.md
-  doctor-openstudio-ai/
+  doctor-openstudio-si/
     SKILL.md
-  repair-openstudio-ai/
+  repair-openstudio-si/
     SKILL.md
 ```
 
@@ -233,7 +233,7 @@ After enabling the marketplace plugin, users who want plain-language OpenStudio
 requests to follow the shared orchestration policy run:
 
 ```bash
-openstudio-ai install codex --target-dir /path/to/codex-project
+openstudio-si install codex --target-dir /path/to/codex-project
 ```
 
 This creates or updates only the marked OpenStudio block in that project's
@@ -244,20 +244,20 @@ The setup workflow should ask the host agent to:
 1. Check whether `uvx` is available. If not, ask before installing uv,
    preferring `pipx install uv` when pipx is present. pipx installs only uv,
    never the runtime itself.
-2. Prepare the pinned runtime with `uvx ... openstudio-ai install-runtime` so
+2. Prepare the pinned runtime with `uvx ... openstudio-si install-runtime` so
    uv's cache is warm before the host's MCP startup timeout matters. Explain
    its persistent effects and ask for approval first: it downloads about 100 MB
-   into uv's cache and creates OpenStudio AI's user-local data folder for model
+   into uv's cache and creates OpenStudio SI's user-local data folder for model
    workspaces and simulation runs. It does not change project files or other
    Python environments.
-3. Run `uvx ... openstudio-ai doctor --json` with the plugin version and
+3. Run `uvx ... openstudio-si doctor --json` with the plugin version and
    contract.
 4. If `plugin_ready` is false, act on the diagnostic codes:
    `runtime_storage_not_ready` means step 2 has not run (run it with approval);
    `plugin_runtime_incompatible` means the cached runtime is stale, so rebuild it
    with `uvx --reinstall ...` after explaining what will happen and receiving
    approval. In marketplace mode the doctor's remediation text names the pinned
-   `uvx` commands, because `openstudio-ai` is not on PATH.
+   `uvx` commands, because `openstudio-si` is not on PATH.
 5. Diagnose a `uv` missing from the PATH that launches the host.
 6. Explain the network dependency described above. When a setup or doctor
    command fails offline before printing a result, retry the generated
@@ -266,8 +266,8 @@ The setup workflow should ask the host agent to:
 8. (Codex only.) Warn at the start that setup also enables automatic OpenStudio routing in
    the current project. It is a required completion step, not a separate
    opt-in process. After the runtime is ready, preview
-   `openstudio-ai install codex --target-dir . --dry-run --force`, then run
-   `openstudio-ai install codex --target-dir . --force`. The command creates
+   `openstudio-si install codex --target-dir . --dry-run --force`, then run
+   `openstudio-si install codex --target-dir . --force`. The command creates
    `AGENTS.md`, updates its marked block, or appends that block to an unmanaged
    file without replacing existing project instructions.
 

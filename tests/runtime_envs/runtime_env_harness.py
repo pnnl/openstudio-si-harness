@@ -23,20 +23,20 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = REPO_ROOT / "docker" / "runtime-envs" / "Dockerfile"
-IMAGE_REPO = os.getenv("OPENSTUDIO_AI_RUNTIME_ENV_IMAGE", "openstudio-ai-runtime-env")
-ENABLE_VAR = "OPENSTUDIO_AI_RUNTIME_ENV_TESTS"
-SKIP_BUILD_VAR = "OPENSTUDIO_AI_RUNTIME_ENV_SKIP_BUILD"
+IMAGE_REPO = os.getenv("OPENSTUDIO_SI_RUNTIME_ENV_IMAGE", "openstudio-si-runtime-env")
+ENABLE_VAR = "OPENSTUDIO_SI_RUNTIME_ENV_TESTS"
+SKIP_BUILD_VAR = "OPENSTUDIO_SI_RUNTIME_ENV_SKIP_BUILD"
 # Hosts give an MCP server a bounded time to start (Claude Code: MCP_TIMEOUT).
-STARTUP_BUDGET_S = float(os.getenv("OPENSTUDIO_AI_MCP_STARTUP_BUDGET_S", "30"))
+STARTUP_BUDGET_S = float(os.getenv("OPENSTUDIO_SI_MCP_STARTUP_BUDGET_S", "30"))
 # A cold first launch downloads Python, openstudio, and dependencies.
-COLD_START_LIMIT_S = float(os.getenv("OPENSTUDIO_AI_MCP_COLD_START_LIMIT_S", "900"))
+COLD_START_LIMIT_S = float(os.getenv("OPENSTUDIO_SI_MCP_COLD_START_LIMIT_S", "900"))
 
 EXPORT_ROOT = "/opt/exports"
 MCP_CONFIG_PATHS = {
-    "claude": "claude/openstudio-ai/.mcp.json",
-    "codex": "codex/plugins/openstudio-ai/.mcp.json",
+    "claude": "claude/openstudio-si/.mcp.json",
+    "codex": "codex/plugins/openstudio-si/.mcp.json",
 }
-MCP_TAIL = ["openstudio-ai-mcp", "--transport", "stdio"]
+MCP_TAIL = ["openstudio-si-mcp", "--transport", "stdio"]
 
 
 @dataclass(frozen=True)
@@ -263,13 +263,13 @@ class RuntimeEnv:
         server = self.mcp_server(export)
         return self.exec(
             self.runtime_argv(
-                "openstudio-ai",
+                "openstudio-si",
                 "doctor",
                 "--json",
                 "--plugin-version",
-                server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"],
+                server["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"],
                 "--plugin-contract-version",
-                server["env"]["OPENSTUDIO_AI_PLUGIN_CONTRACT_VERSION"],
+                server["env"]["OPENSTUDIO_SI_PLUGIN_CONTRACT_VERSION"],
                 export=export,
             ),
             **kwargs,
@@ -344,11 +344,11 @@ async def _mcp_session(
         return run
 
 
-BACKTICK_COMMAND = re.compile(r"`((?:uvx|openstudio-ai(?:-mcp)?)\b[^`]*)`")
+BACKTICK_COMMAND = re.compile(r"`((?:uvx|openstudio-si(?:-mcp)?)\b[^`]*)`")
 
 
 def recommended_runtime_commands(payload: Any) -> set[str]:
-    """Collect every backticked runtime command (`uvx ...` or `openstudio-ai ...`)."""
+    """Collect every backticked runtime command (`uvx ...` or `openstudio-si ...`)."""
     found: set[str] = set()
 
     def walk(value: Any) -> None:

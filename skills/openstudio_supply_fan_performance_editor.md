@@ -2,7 +2,7 @@
 name: openstudio-supply-fan-performance-editor
 description: Edit efficiency and pressure on an existing direct constant- or variable-volume air-loop supply fan in place, preserving its identity, controls and references.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled
@@ -73,3 +73,7 @@ Report covered failures without drafting a substitute or broadening the edit.
 Return output/report paths, the unchanged fan handle and before/after values. Keep
 the OSM and `<stem>/` companion together; honor `requires_companion_workflow`. Hand
 sizing or performance assessment to the selected simulation provider separately.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to resolve fan power allowances and variable-speed control thresholds (`system_requirements_fan_power_allowance`, `..._fan_control`). Convert code metrics (fan kW per cfm, W per cfm) to the efficiency and pressure inputs this skill takes, using the fan's design flow, and record the conversion and its assumptions. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

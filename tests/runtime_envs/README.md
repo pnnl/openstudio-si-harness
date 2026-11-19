@@ -31,32 +31,32 @@ Every image contains two exports:
 
 ```bash
 # Deterministic matrix (builds images on first run; about 2-3 GB for the native images)
-OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1 uv run --extra dev pytest tests/runtime_envs -v -rxX
+OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1 uv run --extra dev pytest tests/runtime_envs -v -rxX
 
 # Reuse images that are already built, and pick environments
-OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1 OPENSTUDIO_AI_RUNTIME_ENV_SKIP_BUILD=1 \
+OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1 OPENSTUDIO_SI_RUNTIME_ENV_SKIP_BUILD=1 \
     uv run --extra dev pytest tests/runtime_envs -k "native or airgap" -v
 ```
 
-The tests are skipped unless `OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1` is set, so the
+The tests are skipped unless `OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1` is set, so the
 normal test suite does not need Docker.
 
 Measured facts, such as startup seconds, whether the native CLI loads a model
 saved by the SDK, and agent transcripts, are written to
-`outputs/runtime_envs/report.json`. Set `OPENSTUDIO_AI_RUNTIME_ENV_REPORT` to
+`outputs/runtime_envs/report.json`. Set `OPENSTUDIO_SI_RUNTIME_ENV_REPORT` to
 write them somewhere else.
 
 Tuning:
 
-- `OPENSTUDIO_AI_MCP_STARTUP_BUDGET_S` (default `30`): the host's MCP startup
+- `OPENSTUDIO_SI_MCP_STARTUP_BUDGET_S` (default `30`): the host's MCP startup
   timeout.
-- `OPENSTUDIO_AI_MCP_COLD_START_LIMIT_S` (default `900`): the hard limit for a
+- `OPENSTUDIO_SI_MCP_COLD_START_LIMIT_S` (default `900`): the hard limit for a
   cold first launch.
 
 ## Model-driven setup tests
 
 [test_agent_setup_runtime_envs.py](test_agent_setup_runtime_envs.py) gives a
-real model the exported `setup-openstudio-ai` skill and a shell tool that runs
+real model the exported `setup-openstudio-si` skill and a shell tool that runs
 inside the container. The user is simulated: every approval is granted and
 logged. The assertions cover:
 
@@ -72,7 +72,7 @@ Depot:
 cp tests/runtime_envs/.env.example tests/runtime_envs/.env   # or use the repo-root .env
 # set LLM_API_KEY, and LLM_MODEL to a model your team can access
 
-OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1 \
+OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1 \
     uv run --extra dev --with openai==2.6.1 pytest tests/runtime_envs -m runtime_env_agent -v
 ```
 

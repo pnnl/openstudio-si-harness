@@ -7,12 +7,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from adapters.base import OpenStudioAiHostAdapter
+from adapters.base import OpenStudioSiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
 from adapters.runtime_helpers import (
     doctor_triage_guidance,
     marketplace_mcp_server_config,
     offline_guidance,
+    optional_mcp_servers,
     prepare_runtime_guidance,
     runtime_doctor_command,
     runtime_uvx_command,
@@ -21,19 +22,20 @@ from harness.asset_manifest import (
     agent_source_for_host,
     reference_exports_for_host,
     resource_exports_for_host,
+    sdk_reference_aliases,
     skill_exports_for_host,
     skill_ids_for_host,
     skill_sources_for_host,
 )
 from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
 from harness.registry import discover_harness_assets
-from openstudio_ai_mcp.compatibility import package_version, plugin_mcp_environment
+from openstudio_si_mcp.compatibility import package_version, plugin_mcp_environment
 
-GENERATED_START = "<!-- BEGIN OPENSTUDIO_AI_HARNESS -->"
-GENERATED_END = "<!-- END OPENSTUDIO_AI_HARNESS -->"
-SERVER_NAME = "openstudio_ai"
-DEFAULT_PLUGIN_NAME = "openstudio-ai"
-MARKETPLACE_NAME = "openstudio-ai-local"
+GENERATED_START = "<!-- BEGIN OPENSTUDIO_SI_HARNESS -->"
+GENERATED_END = "<!-- END OPENSTUDIO_SI_HARNESS -->"
+SERVER_NAME = "openstudio_si"
+DEFAULT_PLUGIN_NAME = "openstudio-si"
+MARKETPLACE_NAME = "openstudio-si-local"
 
 
 @dataclass(frozen=True)
@@ -64,11 +66,11 @@ class PluginExportResult:
     files: list[Path]
 
 
-class ClaudeCodeAdapter(OpenStudioAiHostAdapter):
-    """Adapter contract for installing OpenStudio AI into Claude Code-style hosts."""
+class ClaudeCodeAdapter(OpenStudioSiHostAdapter):
+    """Adapter contract for installing OpenStudio SI into Claude Code-style hosts."""
 
     def build_launch_plan(self) -> HostLaunchPlan:
-        """Resolve the host-facing assets from the OpenStudio AI harness registry."""
+        """Resolve the host-facing assets from the OpenStudio SI harness registry."""
         assets = discover_harness_assets(self.config.workspace_root)
         return HostLaunchPlan(
             host_name="claude_code",
@@ -203,6 +205,7 @@ def _render_mcp_config(
         else {}
     )
     mcp_servers[SERVER_NAME] = _mcp_server_config(workspace_root, runtime_mode)
+    mcp_servers.update(optional_mcp_servers(runtime_mode))
     existing["mcpServers"] = mcp_servers
     return json.dumps(existing, indent=2, ensure_ascii=True) + "\n"
 
@@ -213,7 +216,8 @@ def _render_plugin_mcp_config(workspace_root: Path, runtime_mode: str) -> str:
         json.dumps(
             {
                 "mcpServers": {
-                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode)
+                    SERVER_NAME: _mcp_server_config(workspace_root, runtime_mode),
+                    **optional_mcp_servers(runtime_mode),
                 }
             },
             indent=2,
@@ -230,15 +234,15 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
             "command": sys.executable,
             "args": [
                 "-m",
-                "openstudio_ai_mcp.server",
+                "openstudio_si_mcp.server",
                 "--transport",
                 "stdio",
                 "--workspace-root",
-                str(workspace_root / ".openstudio_ai_mcp_workspace"),
+                str(workspace_root / ".openstudio_si_mcp_workspace"),
             ],
             "env": {
                 "PYTHONPATH": str(workspace_root),
-                "OPENSTUDIO_AI_ROOT": str(workspace_root),
+                "OPENSTUDIO_SI_ROOT": str(workspace_root),
                 **plugin_mcp_environment(),
             },
         }
@@ -246,7 +250,7 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
         return marketplace_mcp_server_config(plugin_mcp_environment())
     if runtime_mode == "installed":
         return {
-            "command": "openstudio-ai-mcp",
+            "command": "openstudio-si-mcp",
             "args": ["--transport", "stdio"],
             "env": plugin_mcp_environment(),
         }
@@ -277,8 +281,8 @@ def _render_claude_instructions(
 
     if not force:
         raise FileExistsError(
-            f"{existing_path} already exists and is not managed by OpenStudio AI. "
-            "Use --force to append the generated OpenStudio AI block."
+            f"{existing_path} already exists and is not managed by OpenStudio SI. "
+            "Use --force to append the generated OpenStudio SI block."
         )
 
     return existing.rstrip() + "\n\n" + generated
@@ -294,13 +298,13 @@ def _generated_instruction_block(plan: HostLaunchPlan, workspace_root: Path) -> 
     skill_lines = "\n".join(f"- `{path}`" for path in plan.skill_paths)
     return (
         f"{GENERATED_START}\n"
-        "# OpenStudio AI Harness\n\n"
-        "Use OpenStudio AI for OpenStudio model inspection, model editing, simulation, "
+        "# OpenStudio SI Harness\n\n"
+        "Use OpenStudio SI for OpenStudio model inspection, model editing, simulation, "
         "result retrieval, SDK lookup, and workflow skill guidance.\n\n"
         "## Runtime Boundaries\n\n"
-        "- Use the `openstudio_ai` MCP server for model lifecycle, simulation, results, "
+        "- Use the `openstudio_si` MCP server for model lifecycle, simulation, results, "
         "approved measures, and SDK documentation lookup.\n"
-        "- Use the listed OpenStudio AI skill files as workflow guidance.\n"
+        "- Use the listed OpenStudio SI skill files as workflow guidance.\n"
         "- Treat the blackboard schema as the source of truth for long-running workflow state.\n"
         "- Learning skills support candidate drafting only; they do not persist candidate assets. "
         "Trusted assets require review and eval validation.\n\n"
@@ -339,14 +343,14 @@ def _planned_export_files(
         plugin_dir / "settings.json",
         plugin_dir / "agents" / "openstudio-modeler.md",
         plugin_dir / "monitors" / "monitors.json",
-        plugin_dir / "bin" / "openstudio-ai-learning-monitor",
+        plugin_dir / "bin" / "openstudio-si-learning-monitor",
     ]
     if runtime_mode == "marketplace":
         files.extend(
             [
-                plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md",
-                plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md",
-                plugin_dir / "skills" / "repair-openstudio-ai" / "SKILL.md",
+                plugin_dir / "skills" / "setup-openstudio-si" / "SKILL.md",
+                plugin_dir / "skills" / "doctor-openstudio-si" / "SKILL.md",
+                plugin_dir / "skills" / "repair-openstudio-si" / "SKILL.md",
             ]
         )
     files.extend(
@@ -372,15 +376,15 @@ def _render_marketplace_json(plugin_name: str) -> str:
                 "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
                 "name": MARKETPLACE_NAME,
                 "version": package_version(),
-                "description": "Local marketplace for the OpenStudio AI Claude plugin.",
+                "description": "Local marketplace for the OpenStudio SI Claude plugin.",
                 "owner": {
-                    "name": "OpenStudio AI",
+                    "name": "OpenStudio SI",
                 },
                 "plugins": [
                     {
                         "name": plugin_name,
                         "description": (
-                            "OpenStudio AI harness for OpenStudio model editing, simulation, "
+                            "OpenStudio SI harness for OpenStudio model editing, simulation, "
                             "results, SDK lookup, and reusable workflow skills."
                         ),
                         "version": package_version(),
@@ -408,10 +412,10 @@ def _render_install_doc(
         validation_command = f"claude plugin validate {marketplace_dir}"
         marketplace_command = f"/plugin marketplace add {marketplace_dir}"
     return (
-        "# Install OpenStudio AI In Claude Code\n\n"
-        f"This export is a Claude Code marketplace containing the OpenStudio AI plugin. Use {marketplace_ref}.\n\n"
+        "# Install OpenStudio SI In Claude Code\n\n"
+        f"This export is a Claude Code marketplace containing the OpenStudio SI plugin. Use {marketplace_ref}.\n\n"
         "## 1. Validate The Export\n\n"
-        "From the OpenStudio AI harness repository:\n\n"
+        "From the OpenStudio SI harness repository:\n\n"
         "```bash\n"
         f"{validation_command}\n"
         "```\n\n"
@@ -437,11 +441,11 @@ def _render_install_doc(
         f"/{plugin_name}:simulate\n"
         f"/{plugin_name}:query-results\n"
         "```\n\n"
-        "The plugin also contributes the OpenStudio modeler agent and an `openstudio_ai` MCP server.\n\n"
+        "The plugin also contributes the OpenStudio modeler agent and an `openstudio_si` MCP server.\n\n"
         "## Runtime Setup\n\n"
         "After installation, run the setup skill:\n\n"
         "```text\n"
-        f"/{plugin_name}:setup-openstudio-ai\n"
+        f"/{plugin_name}:setup-openstudio-si\n"
         "```\n\n"
         "The setup skill checks uv, prepares the pinned runtime, and explains any "
         "missing installation steps in energy-modeler language.\n"
@@ -464,14 +468,14 @@ def _write_plugin_package(
     (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
         json.dumps(
             {
-                "name": "openstudio-ai",
-                "displayName": "OpenStudio AI",
+                "name": "openstudio-si",
+                "displayName": "OpenStudio SI",
                 "version": package_version(),
                 "description": (
-                    "OpenStudio AI harness for model editing, simulation, results, "
+                    "OpenStudio SI harness for model editing, simulation, results, "
                     "SDK lookup, and reusable building-energy workflow skills."
                 ),
-                "author": {"name": "OpenStudio AI"},
+                "author": {"name": "OpenStudio SI"},
                 "keywords": [
                     "openstudio",
                     "building-energy-modeling",
@@ -510,7 +514,7 @@ def _write_plugin_package(
         _render_learning_monitor_config(),
         encoding="utf-8",
     )
-    monitor_script = plugin_dir / "bin" / "openstudio-ai-learning-monitor"
+    monitor_script = plugin_dir / "bin" / "openstudio-si-learning-monitor"
     monitor_script.write_text(_learning_monitor_script(), encoding="utf-8")
     monitor_script.chmod(0o755)
 
@@ -525,7 +529,9 @@ def _write_plugin_package(
     _write_marketplace_setup_skills(plugin_dir / "skills", runtime_mode)
     _write_skill_references(plugin_dir / "skills", workspace_root)
     write_resources(
-        resource_exports_for_host(workspace_root, plugin_dir, "claude"), plugin_dir
+        resource_exports_for_host(workspace_root, plugin_dir, "claude"),
+        plugin_dir,
+        aliases=sdk_reference_aliases(workspace_root, "claude"),
     )
 
 
@@ -608,25 +614,25 @@ def _write_marketplace_setup_skills(skills_dir: Path, runtime_mode: str) -> None
 
 def _marketplace_setup_skill_docs() -> dict[str, str]:
     configure = runtime_uvx_command(
-        "openstudio-ai", "configure-openstudio", "--path", "<confirmed-executable>"
+        "openstudio-si", "configure-openstudio", "--path", "<confirmed-executable>"
     )
     doctor = runtime_doctor_command()
     return {
-        "setup-openstudio-ai": _skill_markdown(
-            name="setup-openstudio-ai",
-            description="Check and prepare the OpenStudio AI runtime for energy modeling.",
+        "setup-openstudio-si": _skill_markdown(
+            name="setup-openstudio-si",
+            description="Check and prepare the OpenStudio SI runtime for energy modeling.",
             body=(
-                "# Setup OpenStudio AI\n\n"
-                "Help the user get OpenStudio AI ready without assuming programming "
+                "# Setup OpenStudio SI\n\n"
+                "Help the user get OpenStudio SI ready without assuming programming "
                 "experience.\n\n"
-                "1. Explain that OpenStudio AI runs its runtime through `uv`, which "
+                "1. Explain that OpenStudio SI runs its runtime through `uv`, which "
                 "downloads the exact runtime release this plugin was built for, "
                 "including its own Python. The user does not need to choose a Python.\n"
                 "2. Check whether uv is available by running `uvx --version`. If it is "
                 "missing, ask before installing it. If `pipx --version` works, prefer "
                 "`pipx install uv`; otherwise offer an installer from "
                 "https://docs.astral.sh/uv/getting-started/installation/. Use pipx only "
-                "to install uv, never to install the OpenStudio AI runtime.\n"
+                "to install uv, never to install the OpenStudio SI runtime.\n"
                 f"3. {prepare_runtime_guidance('Claude Code')}"
                 f"4. Run the doctor: `{doctor}`.\n"
                 "5. Treat `core_ready: true` from the doctor as the only successful core "
@@ -638,7 +644,7 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "is optional: a missing Docker installation or unconfigured NLR must not block "
                 "core readiness. If Docker is available and the user wants NLR, offer its "
                 "Docker Quick Start without installing it automatically: "
-                "https://pnnl.github.io/openstudio-ai-plugins/#quick-start. Explain that "
+                "https://pnnl.github.io/openstudio-si-plugins/#quick-start. Explain that "
                 "Docker Desktop must be installed and running, then the user follows that "
                 "page to configure the MCP server as `openstudio-mcp` and reloads Claude Code.\n"
                 f"7. {doctor_triage_guidance()}"
@@ -661,22 +667,22 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "simulation, results, SDK lookup, and workflow state tracking.\n"
             ),
         ),
-        "doctor-openstudio-ai": _skill_markdown(
-            name="doctor-openstudio-ai",
-            description="Diagnose OpenStudio AI runtime readiness.",
+        "doctor-openstudio-si": _skill_markdown(
+            name="doctor-openstudio-si",
+            description="Diagnose OpenStudio SI runtime readiness.",
             body=(
-                "# Doctor OpenStudio AI\n\n"
+                "# Doctor OpenStudio SI\n\n"
                 f"Run `{doctor}`. If `uvx` is missing, follow the setup skill. "
                 f"{doctor_triage_guidance()}"
                 "Explain missing uv, missing runtime, missing OpenStudio, "
                 "or path problems as setup items, not programming failures.\n"
             ),
         ),
-        "repair-openstudio-ai": _skill_markdown(
-            name="repair-openstudio-ai",
-            description="Guide non-destructive repair of the OpenStudio AI runtime.",
+        "repair-openstudio-si": _skill_markdown(
+            name="repair-openstudio-si",
+            description="Guide non-destructive repair of the OpenStudio SI runtime.",
             body=(
-                "# Repair OpenStudio AI\n\n"
+                "# Repair OpenStudio SI\n\n"
                 "First run the doctor skill. "
                 f"{doctor_triage_guidance()}"
                 "After preparing or rebuilding the runtime, "
@@ -748,9 +754,9 @@ def _render_learning_monitor_config() -> str:
             [
                 {
                     "name": "openstudio-learning-events",
-                    "command": '"${CLAUDE_PLUGIN_ROOT}"/bin/openstudio-ai-learning-monitor',
+                    "command": '"${CLAUDE_PLUGIN_ROOT}"/bin/openstudio-si-learning-monitor',
                     "description": (
-                        "Passive notifications for OpenStudio AI candidate learning events."
+                        "Passive notifications for OpenStudio SI candidate learning events."
                     ),
                     "when": "on-skill-invoke:propose-measure",
                 }
@@ -765,7 +771,7 @@ def _render_learning_monitor_config() -> str:
 def _learning_monitor_script() -> str:
     """Return a small monitor that tails learning_events.jsonl when present."""
     return '''#!/usr/bin/env python3
-"""Emit OpenStudio AI learning events for Claude Code monitor notifications."""
+"""Emit OpenStudio SI learning events for Claude Code monitor notifications."""
 
 from __future__ import annotations
 
@@ -777,13 +783,13 @@ from pathlib import Path
 
 def candidate_paths() -> list[Path]:
     paths: list[Path] = []
-    explicit = os.getenv("OPENSTUDIO_AI_LEARNING_EVENT_LOG", "").strip()
+    explicit = os.getenv("OPENSTUDIO_SI_LEARNING_EVENT_LOG", "").strip()
     if explicit:
         paths.append(Path(explicit).expanduser())
     project_dir = os.getenv("CLAUDE_PROJECT_DIR", "").strip()
     if project_dir:
         paths.append(Path(project_dir) / "logs" / "learning_events.jsonl")
-    data_dir = os.getenv("OPENSTUDIO_AI_DATA_DIR", "").strip()
+    data_dir = os.getenv("OPENSTUDIO_SI_DATA_DIR", "").strip()
     if data_dir:
         paths.append(Path(data_dir) / "logs" / "learning_events.jsonl")
     return paths
@@ -824,12 +830,12 @@ def _render_plugin_readme(
         f"- `{skill}`" for skill in skill_ids_for_host(workspace_root, "claude")
     )
     return (
-        "# OpenStudio AI\n\n"
-        "OpenStudio AI is a Claude plugin package for building-energy modeling "
+        "# OpenStudio SI\n\n"
+        "OpenStudio SI is a Claude plugin package for building-energy modeling "
         "workflows using OpenStudio, MCP tools, reusable skills, and a reviewed "
         "SDK knowledge base.\n\n"
         "## What It Includes\n\n"
-        "- `.mcp.json`: registers the `openstudio_ai` MCP server.\n"
+        "- `.mcp.json`: registers the `openstudio_si` MCP server.\n"
         "- `agents/openstudio-modeler.md`: the OpenStudio modeler agent prompt.\n"
         "- `settings.json`: sets `agent` to `openstudio-modeler`, activating it "
         "as the main Claude Code thread while the plugin is enabled.\n"
@@ -838,15 +844,15 @@ def _render_plugin_readme(
         "- `monitors/`: passive learning-event notifications for candidate learning workflows.\n"
         "- `bin/`: monitor helper executables.\n\n"
         "## User-Facing Skills\n\n"
-        "- `/openstudio-ai:add-vav-reheat`: plan and execute a VAV reheat workflow.\n"
-        "- `/openstudio-ai:simulate`: run or prepare an OpenStudio simulation workflow.\n"
-        "- `/openstudio-ai:query-results`: retrieve SQL-backed simulation results.\n\n"
+        "- `/openstudio-si:add-vav-reheat`: plan and execute a VAV reheat workflow.\n"
+        "- `/openstudio-si:simulate`: run or prepare an OpenStudio simulation workflow.\n"
+        "- `/openstudio-si:query-results`: retrieve SQL-backed simulation results.\n\n"
         "## Runtime Skills\n\n"
         f"{skill_names}\n\n"
         "## Runtime Note\n\n"
         f"Runtime mode: `{runtime_mode}`.\n\n"
         "In `local` mode, this plugin references a source checkout. In `installed` "
-        "mode, it expects the `openstudio-ai-mcp` command to be available on the "
+        "mode, it expects the `openstudio-si-mcp` command to be available on the "
         "user's machine. In `marketplace` mode, it launches the matching runtime "
         "release through `uvx`.\n\n"
         "## Claude Code Activation\n\n"
@@ -869,19 +875,19 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
     elif runtime_mode == "marketplace":
         runtime_text = (
             "The current `.mcp.json` launches the pinned runtime through uv:\n\n"
-            f"- `{runtime_uvx_command('openstudio-ai-mcp', '--transport', 'stdio')}`\n\n"
+            f"- `{runtime_uvx_command('openstudio-si-mcp', '--transport', 'stdio')}`\n\n"
         )
     else:
         runtime_text = (
             "The current `.mcp.json` points to the installed runtime command:\n\n"
-            "- `openstudio-ai-mcp --transport stdio`\n\n"
+            "- `openstudio-si-mcp --transport stdio`\n\n"
         )
     return (
-        "# OpenStudio AI Connectors\n\n"
+        "# OpenStudio SI Connectors\n\n"
         "This plugin uses one local MCP server.\n\n"
         "| Connector | Type | Purpose |\n"
         "| --- | --- | --- |\n"
-        "| `openstudio_ai` | local stdio MCP | OpenStudio model lifecycle, simulation, "
+        "| `openstudio_si` | local stdio MCP | OpenStudio model lifecycle, simulation, "
         "results, approved measures, and SDK documentation lookup |\n\n"
         f"{runtime_text}"
         "OpenStudio and EnergyPlus availability depends on the local environment.\n"
@@ -889,14 +895,14 @@ def _render_connectors_doc(workspace_root: Path, runtime_mode: str) -> str:
 
 
 def _default_workspace_root() -> Path:
-    """Return the OpenStudio AI example root from this adapter module."""
+    """Return the OpenStudio SI example root from this adapter module."""
     return Path(__file__).resolve().parents[1]
 
 
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments for project install and plugin export."""
     parser = argparse.ArgumentParser(
-        description="Install the OpenStudio AI harness into Claude Code."
+        description="Install the OpenStudio SI harness into Claude Code."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -913,7 +919,7 @@ def _parse_args() -> argparse.Namespace:
         "--workspace-root",
         type=Path,
         default=_default_workspace_root(),
-        help="OpenStudio AI harness root.",
+        help="OpenStudio SI harness root.",
     )
     install.add_argument(
         "--dry-run", action="store_true", help="Preview files without writing them."
@@ -948,7 +954,7 @@ def _parse_args() -> argparse.Namespace:
         "--workspace-root",
         type=Path,
         default=_default_workspace_root(),
-        help="OpenStudio AI harness root.",
+        help="OpenStudio SI harness root.",
     )
     export.add_argument(
         "--dry-run",

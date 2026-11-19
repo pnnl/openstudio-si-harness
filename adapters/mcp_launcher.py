@@ -1,4 +1,4 @@
-"""Start a pinned OpenStudio AI runtime command, preferring uv's cache.
+"""Start a pinned OpenStudio SI runtime command, preferring uv's cache.
 
 Marketplace `.mcp.json` files inline this file's source:
 
@@ -53,7 +53,7 @@ def environment_is_cached(uv, options):
 
 
 def fail(message, code):
-    print(f"openstudio-ai launcher: {message}", file=sys.stderr)
+    print(f"openstudio-si launcher: {message}", file=sys.stderr)
     return code
 
 
@@ -71,7 +71,7 @@ def main(argv):
         cached = environment_is_cached(uv, options)
         if not cached:
             print(
-                "openstudio-ai launcher: runtime not in uv's cache; downloading it.",
+                "openstudio-si launcher: runtime not in uv's cache; downloading it.",
                 file=sys.stderr,
             )
         final = launch_argv(uv, options, command, cached)

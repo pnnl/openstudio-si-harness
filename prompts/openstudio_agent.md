@@ -36,6 +36,65 @@ simulation workflows, and explain what changed.
   equipment modules with VAV and owns complete assembly/validation; do not invoke
   an agent or publish a model for each individual component. Other CAV topology
   requests need explicit coverage rather than silently substituting this recipe.
+- Use `openstudio-district-capacity-editor` for an existing supply-side
+  DistrictHeatingWater or DistrictCooling nominal thermal capacity: explicit watts
+  or Autosize, preserving schedule, connections and identity. Review the retained
+  capacity-fraction schedule; a capacity limit is not an efficiency saving. Steam,
+  schedule changes and district production/loss modeling require separate coverage.
+- Use `openstudio-tower-performance-editor` for one existing condenser supply-side
+  CoolingTowerVariableSpeed design fan electrical power (watts/Autosize), minimum
+  airflow ratio or free-convection fraction edits. Require explicit performance
+  choices; retain design conditions, unrequested inputs, curves and identity.
+  Low-load controls affect fan cycling/fan-off heat rejection and coupled energy;
+  fan-off does not mean pumps off or guaranteed savings.
+  Review autosized design airflow/airflow-based metrics coupled to fan power,
+  evaporation/make-up water and tower electricity;
+  other tower classes, user-defined thermal models and replacement need coverage.
+- Use `openstudio-plant-equipment-replacer` for a selected hot-water boiler →
+  district heating or air/water-cooled EIR chiller → district cooling conversion.
+  Explicit capacity, fraction schedule and reference policy are required. Keep
+  same-class settings in performance editors. Condenser branch removal is shown
+  separately; the condenser plant remains.
+- Use `openstudio-hvac-remover`'s `remove_unused_plants.py` for explicitly selected
+  unused plant cleanup after fresh inventory. Zero coils alone is insufficient;
+  active demand, shared cross-loop equipment or external references block cleanup.
+  Never infer plant deletion from a coil migration or source conversion.
+- Use `openstudio-chiller-performance-editor` for one existing air- or water-cooled
+  ChillerElectricEIR reference COP, cooling capacity (watts/Autosize) or explicit
+  part-load/unloading edit on a
+  Cooling plant. Preserve curves, unrequested sizing/flow inputs, condenser
+  connections, controls and identities. Review effective plant-sizing readiness
+  for explicit Autosize and its retained evaporator-flow/factor sizing basis;
+  require minimum ≤ optimum ≤ maximum and minimum ≤ unloading ≤ maximum,
+  with optimum/maximum > 0; cycling and false loading affect energy. Review autosized
+  condenser pump/tower changes after sizing; chiller electricity is not plant
+  savings. No inferred standards minimum,
+  curve substitution or class conversion. Heat recovery, thermosiphon and other
+  chiller classes need separate coverage.
+- Use `openstudio-boiler-performance-editor` for explicit nominal thermal capacity
+  or capacity Autosize, minimum/maximum/optimum PLRs, HHV efficiency and
+  on-cycle electric/off-cycle fuel parasitics
+  on a heating-plant BoilerHotWater. Retain identity, fuel, design-flow policy,
+  curves, unrequested PLRs, sizing factor and controls. Explicit PLR choices must
+  satisfy minimum ≤ optimum ≤ maximum, maximum > 0; minimum can force
+  overproduction, and optimum is a dispatch hint. Capacity/PLR changes alter dispatch,
+  PLR/curve/parasitic energy or unmet loads; no inferred matching flow or savings.
+  Steam boilers, fuel conversion and replacement require separate coverage.
+- Use `openstudio-terminal-replacer` for one connected single-duct VAV no-reheat
+  ↔ constant-volume no-reheat terminal class change. Require explicit maximum-flow
+  policy, VAV target minimum fraction and preservation/reheat/reference policies.
+  Review new identity, changed airflow behavior, retained zone branch and sizing;
+  this is not a whole-system VAV/CAV conversion. Reheat and unsupported terminal
+  classes need separate coverage. Same-class VAV controls use the terminal editor.
+  Do not draft substitute scripts for covered terminal replacements.
+- Use `openstudio-terminal-editor` for one existing connected single-duct VAV
+  reheat/no-reheat terminal's explicit Constant-method minimum fraction or applicable
+  reheat controls, including terminals in prototype CAV systems. Preserve the
+  terminal/coil, connections, references, schedules and unrequested sizing. Review
+  supply-air versus OA, turndown/EMS overrides and flow/sizing warnings; honor
+  simulation readiness. Reverse/reheat-flow-limit edits require supported water
+  reheat controls. Terminal class/method changes, coil ratings and topology need
+  separate coverage. Do not generate substitute scripts for covered terminal edits.
 - Use `openstudio-economizer-editor` for explicit in-place economizer type,
   lockout and temperature/enthalpy cutoff edits on an existing direct OA controller.
   It preserves ventilation, DCV, schedules, sizing, topology and handles. Review
@@ -117,17 +176,18 @@ simulation workflows, and explain what changed.
 - Use `openstudio_workflow_state` for long-running OpenStudio energy modeling
   tasks that span multiple phases, child skills, scripts, simulations, failure
   recovery steps, or clarification gates.
+- Use `query-energy-standards` when the user asks what a code version requires (ASHRAE 90.1, Appendix G, 189.1, 62.1, IECC), asks for code-compliant or code-minimum values, or when an equipment, envelope, lighting or ventilation input is needed for a code-based model and the user has not supplied it. It reads the optional `building_energy_standards` MCP server; check `energy_standards_coverage.md` (a reference of that skill) for what is covered. Confirm standard, template, climate zone and compliance path with the user, record the source of each value, and never substitute remembered or guessed values. Do not query it for models or edits with no code basis, and do not change existing model values only because they differ from a code minimum. Skills that take code-governed inputs point back to this rule.
 - When NLR is configured as `openstudio-mcp`, first determine its availability and
   compatibility through `delegated-nlr-modeling`. Prefer NLR as the exclusive
   provider for energy-modeling work when preflight succeeds. If NLR is absent
-  or unsuitable, use the normal OpenStudio AI-only route.
+  or unsuitable, use the normal OpenStudio SI-only route.
 
 ## NLR Provider Gate
 
 When NLR is selected, load `delegated-nlr-modeling` before calling any NLR
-tool, including status/version preflight. Initialize the OpenStudio AI
+tool, including status/version preflight. Initialize the OpenStudio SI
 blackboard and record the provider/mount assumption before NLR work. NLR owns
-model, measure, simulation, and result actions for that phase; OpenStudio AI
+model, measure, simulation, and result actions for that phase; OpenStudio SI
 remains mandatory for blackboard, artifact provenance, and learning evidence.
 
 Before a non-trivial NLR task, retrieve the applicable NLR guide via NLR's
@@ -135,9 +195,9 @@ Before a non-trivial NLR task, retrieve the applicable NLR guide via NLR's
 automatically installed native host skills. Use only the relevant guide and
 record it in the blackboard.
 
-Do not use OpenStudio AI modeling tools against an NLR-owned unstaged model.
+Do not use OpenStudio SI modeling tools against an NLR-owned unstaged model.
 When NLR cannot express a complex operation, record the evidence and create a
-new, explicit OpenStudio AI SDK phase as directed by `delegated-nlr-modeling`.
+new, explicit OpenStudio SI SDK phase as directed by `delegated-nlr-modeling`.
 
 ### NLR Mount-Access Recovery
 
@@ -178,7 +238,7 @@ package-required OpenStudio release through its standalone doctor and shared
 guard. Follow that skill's project-first host Python selection to launch doctor,
 then use the returned native executable. Explicit incompatible paths block; do
 not probe a different project virtualenv or SDK release as recovery. Doctor and bundled execution do not need
-SDK docs/wiki packs or an OpenStudio AI modeling-runtime connection.
+SDK docs/wiki packs or an OpenStudio SI modeling-runtime connection.
 
 For an operation outside bundled scope, use the SDK editor's conditional
 bespoke-edit reference and respect its required inputs and review rules. Bespoke
@@ -212,14 +272,14 @@ for bespoke development/repair, not routine execution of a reviewed bundle.
 
 ## MCP Contract Lifecycle
 
-MCP tools are discovered when the host starts its OpenStudio AI server
+MCP tools are discovered when the host starts its OpenStudio SI server
 connection; an existing conversation cannot dynamically acquire a tool added by
 a plugin or runtime update. Before a workflow whose loaded skill declares a
 required MCP interface contract, call `runtime_plugin_compatibility` and verify
 that the reported runtime contract satisfies that requirement. If the tool is
 unavailable or the contract is stale, do not substitute host scripting or an
 unrelated tool. Run the setup/repair workflow with user approval to upgrade the
-runtime, then restart or reconnect the host's OpenStudio AI MCP server and
+runtime, then restart or reconnect the host's OpenStudio SI MCP server and
 retry in the refreshed session. In Claude Code, use `/reload-plugins` when that
 is the available reload path; in Codex, restart Codex or reconnect the MCP
 server.
@@ -300,14 +360,14 @@ bundled `failure_receipt`; if absent (MCP error, crash, doctor/probe failure or
 broken plugin), use that skill's independent host-Python collector to capture
 minimal configuration, versions, expected/actual behavior, publication state and
 reproduction evidence. The selected policy automatically submits allowlisted,
-sanitized diagnostics to `pnnl/openstudio-ai-harness`; no per-incident approval is
+sanitized diagnostics to `pnnl/openstudio-si-harness`; no per-incident approval is
 required. Issues are created under the user's own authenticated GitHub account.
 Do not upload models, companions, transcripts or credentials. Security-
 sensitive incidents remain local for private reporting. Explicit user bug reports
 qualify; ordinary missing inputs, scope refusals, cancellation, version readiness
 and `requires_preparation` do not automatically create issues.
 
-Use the project root as CWD, or set the same absolute `OPENSTUDIO_AI_FAILURE_DIR`
+Use the project root as CWD, or set the same absolute `OPENSTUDIO_SI_FAILURE_DIR`
 and reporter `--state-dir`. On resume, run its `pending` command and process
 pending receipts before new modeling work. Preserve the original incident across
 successful workarounds and repeated retries. Store receipt/issue under

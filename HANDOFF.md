@@ -1,8 +1,8 @@
-# OpenStudio AI Harness Handoff
+# OpenStudio SI Harness Handoff
 
 ## Product Direction
 
-OpenStudio AI is the durable, host-neutral foundation that enables LLMs to do
+OpenStudio SI is the durable, host-neutral foundation that enables LLMs to do
 reliable building-energy engineering work. It must support more than model
 creation and simulation: an agent should be able to preserve a model's lineage
 and evidence, inspect the model and run artifacts, diagnose errors and
@@ -21,23 +21,38 @@ and approval model.
 
 ## Current Status
 
-- The branch keeps exact MCP plugin interface contract `6.0` from the 0.4.1
-  release; it changes how marketplace plugins launch the runtime, not the MCP
-  tool surface. SDK skills keep main's doctor-verified native OpenStudio CLI
-  execution path (`scripts/doctor.py`, exact OpenStudio `3.11.0`). An earlier
-  `sdk_python` field on `runtime_openstudio_status` was removed in the merge.
+- The first packaged VAV recipe is implemented as `prototype_pvav_v1` in the
+  existing VAV creator. It covers gas central heat, approved two-speed DX cooling,
+  and electric terminal reheat. Both exported hosts passed native preflight and
+  apply, and the five-zone design-day run produced positive fan, coil, and terminal
+  sizes with OpenStudio 3.11.0. The 65 preflight tests and 94 apply, sizing,
+  CAV, and packaging checks passed. Evidence is in `outputs/pvav-verification-final/`.
+  The [packaged VAV work guide](docs/HVAC_MODULARIZATION_WORK.md#packaged-vav)
+  records the source trace and the PSZ-AC equipment gaps.
+- The user reports release `0.4.1` is published (October 20, 2026), with exact MCP
+  plugin interface contract `6.0`. Package, agent/skill metadata and both lockfiles
+  are coordinated; hosts
+  must refresh the runtime and exported plugin together. Durable engineering-
+  session, finding and checkpoint surfaces remain available.
+- This branch keeps exact MCP plugin interface contract `6.0`; it changes how
+  marketplace plugins launch the runtime, not the MCP tool surface. SDK skills
+  keep main's doctor-verified native OpenStudio CLI execution path
+  (`scripts/doctor.py`, exact OpenStudio `3.11.0`). An earlier `sdk_python` field
+  on `runtime_openstudio_status` was removed in the merge.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures remain future development;
   they will need a further contract bump when they ship.
-- Equipment through phase 10c and requested follow-ups are implemented. Integration
-  A–D and their review fixes are complete; remaining equipment E is paused.
+- Terminal and plant equipment work through phase 13 is reviewed. Supported
+  operations and remaining limits are in the [release review summary](docs/reviews/SUMMARY.md).
+- PR #47 companion weather fixes are in `6e8fd8f`. The focused SDK suites
+  passed 378 checks, with 53 native cases deselected.
 - Marketplace exports launch the runtime through a pinned `uv` launcher
-  (`adapters/mcp_launcher.py`). The package version is still `0.4.1`, which is
-  already on PyPI. Before exporting the marketplace, bump the package version and
-  publish it to PyPI; the publish workflow refuses an export whose pinned version
-  is not on PyPI or serves a different contract.
-- Current branch: `uvx-marketplace-runtime` (main merged in); the version bump is
-  pending.
+  (`adapters/mcp_launcher.py`). After the rename the package is `openstudio-si`
+  `0.4.2`, which must be published to PyPI before exporting the marketplace; the
+  publish workflow refuses an export whose pinned version is not on PyPI or
+  serves a different contract.
+- Current branch: `uvx-marketplace-runtime` (main, including the OpenStudio SI
+  rename, merged in); OpenStudio SDK/CLI still pinned to `3.11.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous
@@ -50,7 +65,7 @@ and approval model.
 - The runtime uses per-job workspaces. A run can retain the source model,
   EnergyPlus logs (including `eplusout.err`), SQL output, reports, and metadata
   needed for later diagnosis, subject to runtime retention policy.
-- Host adapters distinguish PNNL's `openstudio-ai-mcp` / `openstudio_ai` from
+- Host adapters distinguish PNNL's `openstudio-si-mcp` / `openstudio_si` from
   NLR's optional `openstudio-mcp` connection. NLR discovery is configuration
   detection, not a verified live connection.
 - The base package intentionally excludes AUTOMA-AI and Streamlit. The
@@ -957,7 +972,7 @@ No plugin installation, commit, push or release.
 
 Added planned increment C, `report-openstudio-failure`, before visualizer D and
 backlog E. The user explicitly selected automatic submission to the confirmed
-GitHub destination `pnnl/openstudio-ai-harness`; the earlier GitLab mention is
+GitHub destination `pnnl/openstudio-si-harness`; the earlier GitLab mention is
 resolved by that answer. Existing `github-issue-submitter` targets the plugin repo
 and retains its separate preview-approved general-reporting contract.
 
@@ -1045,7 +1060,7 @@ size metadata, and 66 launchers across 16 owners. SDK resources: 2,445,693
 comparable former owner-copy bytes vs 686,836 shared-resource bytes excluding the
 size report (71.9% reduction). Whole-plugin totals excluding that report: Claude
 934,236 bytes / 239 files; Codex 1,655,433 bytes / 237 files. These are fresh
-marketplace exports, not compressed-download or AI-token measurements.
+marketplace exports, not compressed-download or SI-token measurements.
 
 Verification: 272 unique targeted checks passed (236 packaging/manifest/import/
 doctor/preparation/adapters/CLI/archive; 36 native relocated modeling). Complete
@@ -1064,14 +1079,14 @@ outputs/shared-sdk-increment-b/. No commit, push, plugin installation or release
 docs/reviews/ untouched and all preexisting changes retained.
 
 Stop for B review. Next increment C is automatic sanitized failure reporting to
-pnnl/openstudio-ai-harness, then D read-only HVAC visualization, then equipment E.
+pnnl/openstudio-si-harness, then D read-only HVAC visualization, then equipment E.
 Neither C nor D is implemented by this turn.
 
 
 ## Integration increment C ready for review — October 9, 2026
 
 B is approved. Implemented report-openstudio-failure for both hosts, automatic
-sanitized submissions to fixed pnnl/openstudio-ai-harness, durable local receipts,
+sanitized submissions to fixed pnnl/openstudio-si-harness, durable local receipts,
 copy-ready drafts, duplicate lookup and one-POST uncertain-state handling. Uses
 existing gh authentication; no reporting package/service or OpenStudio import.
 A verbatim independent recovery helper intentionally works even if sdk/ is lost.
@@ -1103,7 +1118,7 @@ pinned build dependencies and does not install a plugin or publish artifacts.
 Review guide: docs/SDK_INTEGRATION_SUMMARY.md. Logs/exports/native receipts
 and evidence: outputs/failure-reporting-increment-c/. Full unrelated equipment,
 annual-energy, MCP/live-provider and native Linux/Windows suites were not rerun.
-No live AI host session. New manifest sources are staged for the existing tracking
+No live SI host session. New manifest sources are staged for the existing tracking
 check, without commit/push/plugin installation/release. docs/reviews/ untouched;
 all preexisting changes preserved. Stop for C review; next D is read-only HVAC
 visualization, then remaining equipment E. D has not been implemented.
@@ -1180,7 +1195,7 @@ are 795,050 bytes excluding size report, within the 1 MiB budget.
 
 Review guide: docs/SDK_INTEGRATION_SUMMARY.md. Logs/exports/private evidence:
 outputs/hvac-visualizer-increment-d/; final native evidence in native-final/.
-No live AI-host session, SVG/HTML rendering, annual simulation, full unrelated
+No live SI-host session, SVG/HTML rendering, annual simulation, full unrelated
 MCP/equipment or native Linux/Windows run. No commit, push, plugin installation,
 release or live issue submission. New manifest sources are staged for the tracking
 check; docs/reviews/ and preexisting user changes are preserved. Stop for D review.
@@ -1383,3 +1398,173 @@ installer and doctor helper report 0.4.1 / contract 6.0 with SDK 3.11.0. Current
 artifacts: outputs/release-0.4.1-20261013/ (verification.json, version-tests.log,
 marketplace.log, marketplace/). Full suites were not repeated for the version-
 number correction. No commit, tag, push, installation or publication.
+
+## Release notes draft removed — October 14, 2026
+
+The user requested the draft only for copying to GitHub Releases. Removed its
+repository file and README/docs links; the consolidated implementation records
+and release checklist remain. No GitHub release was created or edited.
+
+## Publishing test split — October 14, 2026
+
+The publishing workflow now runs `pytest -q tests -m "not slow"` with strict
+marker validation and duration reporting; Chromium installation is removed
+from publishing. Fast coverage includes CLI/contract, manifest, runtime and
+privacy checks plus one paired marketplace-export smoke test. Distribution
+build, Twine validation, release-tag matching and the build-to-publish dependency
+remain. The existing PR/manual CI job keeps the entire unfiltered suite and
+Chromium installation, prints its 25 slowest durations and uploads JUnit timings
+even after a test failure. Existing CI job names and standalone CI are unchanged.
+
+The explicit slow policy lives in tests/conftest.py, with registration in
+pyproject.toml and four regression checks in tests/test_test_suites.py. SDK
+modeling/native/simulation/browser modules, repeated real exports, archive
+builds and large SDK documentation parsing are selected as slow. Plain
+`pytest tests` still runs everything. README, tests/README and docs/RELEASE
+describe the fast, slow and full commands and the timing artifact.
+
+Verification: all 1,492 collected tests partition exactly into 271 fast and
+1,221 slow tests, without overlap or omissions. Fast run: 271 passed, 1,221
+deselected, two expected SDK-document fallback warnings, 21.15 seconds.
+Representative slow run: six passed in 24.76 seconds (real documentation
+parsing, both-host shared payload export, CAV preflight and browser rendering).
+Final policy checks: four passed. Black, Python compilation, workflow YAML
+parsing, new documentation links and git diff --check pass. Root/standalone
+lockfiles remain current offline (82/222 packages). Evidence, timings, collection
+lists and the collection helper are in outputs/test-suite-split-20261014/.
+
+Timings are local macOS/Python 3.13 measurements, not total publishing or GitHub
+runner timings. Full/native simulation suites and unchanged standalone tests
+were not rerun; full CI retains them with their existing environment skips.
+actionlint is unavailable; workflow checks used YAML parsing and the regression
+tests. No remote workflow run, commit, tag, push, installation or publication.
+
+## Equipment sequence resumed — October 20, 2026
+
+The user reports 0.4.1 is published and asked to return to equipment development.
+Updated current status/README and the existing work guide rather than creating
+another planning document. Integration A–D remains complete. Next is phase 11a:
+in-place airflow/reheat-control editing on selected existing VAV-reheat and
+VAV-no-reheat terminals, including those used in the prototype CAV recipe.
+Terminal replacement is a separate phase 11b after editor review. Later proposed
+families remain plant performance/replacement/unused-plant cleanup, broader fan
+locations and unitary/zone recipes; their detailed order/contracts remain open.
+
+The phase-11a initial boundary covers explicit Constant-method minimum fraction
+and applicable terminal reheat controls, preserved identities/references and
+unrequested sizing, ventilation/control impact and native before/after evidence.
+FixedFlow/Scheduled changes, coil ratings, fuel/plant changes and topology changes
+are not silently folded in. Exact SDK applicability still requires the implementation
+probe. Source trace verified against local standards and current shared assembly;
+generic 0.3/0.5 recipe values must not become edit defaults. Full contract/checkpoint:
+docs/HVAC_MODULARIZATION_WORK.md#resumed-equipment-sequence--october-20-2026.
+
+This increment updates the sequence and initial contract only; no terminal editor,
+schema or routing/export exists yet. No equipment tests apply to these documentation
+changes. Verified new links/anchor, source locations and git diff --check; no model
+tests rerun. Existing uncommitted CI/test-split changes are preserved. Current branch
+remains prepare_410_release. No commit, push, installation or new publication.
+
+## Phase 11a — in-place VAV terminal controls — October 20, 2026
+
+Implemented openstudio-terminal-editor for one existing connected
+AirTerminalSingleDuctVAVReheat or VAVNoReheat, scoped to its selected air loop and
+zone. Explicit Constant-method minimum fraction and applicable reheat discharge,
+damper-action and fraction/per-area airflow limits use setters on the existing
+terminal. Reverse edits require water reheat; flow limits require effective
+ReverseWithLimits. No method/default inference, coil-rating edit, schedule change,
+maximum-air/water-flow edit, topology change or implicit sizing reset. Terminal,
+coil, connection, metadata, cost/EMS-reference and service identities are retained.
+
+New script/common module/schema/reference and skill are registered for both hosts;
+agent/orchestrator/SDK routing is updated. The preparer, exact 3.11.0 pin, NLR
+priority, transaction/snapshots, hashes, fresh-plan equality and companion behavior
+are unchanged. Independent saved checks include translated IDD-field values.
+Compact impact includes schedules/OA/DCV, flow/sizing dependencies and EMS count.
+Minimum supply floor below nominal OA only warns because controls can raise flow;
+a fixed maximum below nominal OA marks simulation unready pending review.
+Failure reporting now recognizes fixed terminal schema keys/ReverseWithLimits
+while model names stay aliased. The terminal tests are slow and the existing
+preparation entrypoint matrix includes edit_terminal.py. Public launchers: 74;
+shared SDK resources: 856,417 bytes, below the unchanged 1 MiB budget.
+
+403 unique affected checks passed, no skips: 48 terminal, 152 integration,
+271 fast, seven manifest and one archive checks (deduplicated). Two expected
+documentation-fallback warnings in fast checks. Both relocated complete host
+plugins execute native inventory/preflight/apply. Six native sizing-period runs
+across VAV/electric and CAV/water fixtures show minimum fraction 0.3 → 0.6 with
+flow 0.098714 → 0.197429 m³/s. Temperature-only edits at unchanged airflow actively
+limit discharge to 30.000/30.017 °C. Original source hashes remain unchanged;
+selected reheat energy is reported without an annual-savings/comfort claim.
+CSV companions resolve after relocation with their reported required workflow;
+resource tampering and stale/tampered plans reject. A disconnected-inlet mutation
+and unselected fields/objects are rejected before publication.
+
+Development failures were fixed and rerun: a fixture double-delete caused an SDK
+segfault, NoReheat returns its method as OptionalString, generated manifest YAML
+was rejected before writing, and the diagnostic schema allowlist needed new
+identifiers. The CSV test initially assumed standalone resolution instead of the
+reported required workflow; it now honors that contract and isolates/removes SDK
+test copies. No shared preservation or transaction checks were relaxed.
+
+Five affected exported SKILL documents validate. Black (nine touched Python
+files), compilation, JSON Schema metaschema, documentation/resource links and
+git diff --check pass. Evidence: outputs/terminal-editor-11a/verification.json,
+JUnit/logs, native models/SQL/hashes and both relocated plugins. Work guide has
+the final contract, native table and exact reproduction commands. Full unrelated
+equipment/MCP/standalone suites, annual simulation, native Linux/Windows and live
+host-agent accounts were not rerun. No live issues, commit, push, installation or
+publication. Six new source/test files have intent-to-add entries only; no staged
+contents. Existing uncommitted CI/test-split work is preserved. Stop for 11a review;
+11b terminal replacement has not started.
+
+## Phase 11a T1/T2 review fixes — October 21, 2026
+
+Read docs/reviews/REVIEW_phase11a_terminal_editor.md and round27_probes_test.py
+without changing either. T1 is confirmed natively on the CAV/water fixture with
+ReverseWithLimits, minimum 0.3 and a 24 °C discharge limit to bind heating flow.
+Per-area 0 with fraction 0.5 or 0.2 gives identical 0.3 damper/0.098714 m³/s flow.
+Per-area Autocalculate gives 0.5/0.164524 for fraction 0.5, and 0.3/0.098714 for
+fraction 0.2 bounded by the existing minimum. EIO Design Size stays 0.3 for all
+four cases; User-Specified rows differ, so native operating flow is essential.
+
+Terminal schema rejects numeric per-area edits. Effective fraction edits require
+per-area Autocalculate; an explicit user-chosen per-area "Autosize" reset is now
+allowed as the single reset exception. Missing that choice leaves preflight
+unready. Both active reset cases run through real preflight/apply and saved
+translation verifies EnergyPlus Autocalculate. No hidden resets/defaults.
+Retained ignored limits warn; impact records before/after pinned-engine modes
+instead of the incorrect two-input cap estimate. Fraction-only nominal bounds
+are distinguished from schedule/OA/runtime behavior. Existing hashes, fresh-plan
+equality, snapshots, identities, preparation and NLR priority are unchanged.
+
+T2 compares total zone OA directly against terminal flows. Context/impact records
+multiplier and multiplied floor area. Tests cover multipliers 1/10, OA 0.02 per
+copy, fixed maximum 0.05 and a real 100 m² footprint. At multiplier 10 demand is
+0.2, the shortfall warns and simulation is unready. Requested numeric per-area
+evidence uses 1,000 m² once; it is never presented as a working cap at this pin.
+
+122 unique targeted checks pass, no skips: full terminal suite 55, regression
+batch 117 with overlap removed, and a final four-case native matrix rerun.
+Both relocated native host entrypoints pass in the terminal batch. Fresh paired
+marketplace exports validate; shared SDK resources 861,469 bytes per host, below
+1 MiB. Evidence and final reports: outputs/terminal-editor-t1-t2/verification.json,
+JUnit/logs, native matrix/EIO/SQL and explicit-reset plans/applies, marketplace/.
+The work guide includes source links, the native comparison table, final contract
+and exact reviewer commands. Initial 403-check evidence is historical and retained.
+
+The existing CAV creator still writes per-area 0/fraction 0.5. Its older inert-cap
+issue is confirmed and explicitly flagged in the editor/docs, not silently fixed
+through a recipe/default change here; it needs separate assumptions/native review.
+Full unrelated equipment/MCP/standalone/archive/annual and Linux/Windows suites
+were not repeated. No upstream/live issue, commit, push, installation or release.
+Existing CI/test-split work and user review files remain intact. Return for T1/T2
+review; terminal replacement remains unstarted.
+
+Also addressed the review's tracking-only T4 note: tests/conftest.py and
+tests/test_test_suites.py now have intent-to-add entries alongside the six phase
+files. Contents are not staged and no release-workflow policy was changed.
+
+## OpenStudio SI rename release
+
+The first OpenStudio SI release targets `0.4.2`, MCP contract `6.0`, and OpenStudio SDK `3.11.0`. The maintainer confirmed that the PyPI name is available and the publishing credential is ready. Release OpenStudio SI as a fresh install. Use clean projects for host smoke tests and leave existing OpenStudio AI data intact. After the runtime and marketplace are live, post the announcement on the GitLab page for `openstudio-si-plugins`. Follow the [rename phase](docs/CORE_AND_AGENTS_PLAN.md#1-complete-and-verify-the-openstudio-si-rename) for cutover checks.

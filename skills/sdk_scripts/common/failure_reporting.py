@@ -23,7 +23,7 @@ import tempfile
 import traceback
 from urllib.parse import urlencode
 
-REPOSITORY = "pnnl/openstudio-ai-harness"
+REPOSITORY = "pnnl/openstudio-si-harness"
 ISSUE_ROOT = f"https://github.com/{REPOSITORY}/issues/"
 MAX_INPUT = 131072
 RECEIPT_VERSION = 2
@@ -81,6 +81,46 @@ CONFIG_KEYS = set(
     "supply_temperature_c delta_t_k cooling_type heating_type reheat_type "
     "availability_schedule_name thermostat_schedule minimum_airflow_fraction".split()
 )
+CONFIG_KEYS.update(
+    {
+        "availability_policy",
+        "reheat_policy",
+        "zone_sizing_policy",
+        "maximum_airflow_m3_s",
+    }
+)
+SAFE_WORDS.update(
+    {
+        "VAVNoReheat",
+        "ConstantVolumeNoReheat",
+        "None",
+        "DistrictHeatingWater",
+        "DistrictCooling",
+    }
+)
+CONFIG_KEYS.update(
+    {
+        "district_equipment",
+        "equipment",
+        "capacity_fraction_schedule",
+        "nominal_capacity_w",
+        "tower",
+        "design_fan_power_w",
+        "minimum_air_flow_ratio",
+        "free_convection_capacity_fraction",
+        "chiller",
+        "reference_cop",
+        "reference_capacity_w",
+        "boiler",
+        "nominal_thermal_efficiency",
+        "minimum_part_load_ratio",
+        "maximum_part_load_ratio",
+        "optimum_part_load_ratio",
+        "minimum_unloading_ratio",
+        "on_cycle_parasitic_electric_load_w",
+        "off_cycle_parasitic_fuel_load_w",
+    }
+)
 # Maintained schema field/enum allowlist; regression checks keep it complete.
 CONFIG_KEYS.update(
     [
@@ -100,6 +140,7 @@ CONFIG_KEYS.update(
         "controller",
         "controller_name",
         "convergence_tolerance_k",
+        "damper_heating_action",
         "dcv",
         "defaults_profile",
         "defrost_fraction_increase_per_k",
@@ -142,6 +183,9 @@ CONFIG_KEYS.update(
         "maximum_flow_m3_s",
         "maximum_fraction_schedule",
         "maximum_humidity_ratio",
+        "maximum_reheat_flow_fraction",
+        "maximum_reheat_flow_per_area_m3_s_m2",
+        "maximum_reheat_temperature_c",
         "maximum_temperature_c",
         "maximum_water_flow_m3_s",
         "mechanical_availability_schedule",
@@ -203,6 +247,7 @@ CONFIG_KEYS.update(
         "target_class",
         "target_zones",
         "temperature_control",
+        "terminal",
         "terminal_policy",
         "total_efficiency",
         "type",
@@ -212,6 +257,7 @@ CONFIG_KEYS.update(
         "variable_volume",
         "ventilation",
         "ventilation_method",
+        "zone",
         "zone_cooling",
         "zone_heating",
     ]
@@ -265,6 +311,7 @@ SAFE_WORDS.update(
         "ProportionalMinimum",
         "Reject",
         "Reverse",
+        "ReverseWithLimits",
         "Rotary",
         "SimpleAnalysis",
         "Temperature",
@@ -878,6 +925,8 @@ def capture_exception(exc, operation, stage, args=None, report=None):
                 "plugin_version", "unknown"
             )
         if args:
+            # Plan/report warnings can contain model-object names. Never copy
+            # them into diagnostics; take only the explicit configuration below.
             for field in ("config", "plan"):
                 path = getattr(args, field, None)
                 if (
@@ -928,7 +977,7 @@ def capture_exception(exc, operation, stage, args=None, report=None):
                 "unpublished; read-only operation completed but report writing failed"
             )
         state = os.environ.get(
-            "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+            "OPENSTUDIO_SI_FAILURE_DIR", str(Path.cwd() / ".openstudio_si_failures")
         )
         result = capture(event, state)
         return {"failure_receipt": result["receipt"]}
@@ -985,7 +1034,7 @@ def issue_identity(value):
 
 
 def find_existing(transport, identity):
-    marker = "openstudio-ai-incident:" + identity
+    marker = "openstudio-si-incident:" + identity
     result = transport.request(
         "GET",
         "search/issues?"
@@ -1029,7 +1078,7 @@ def render_issue(record):
             "",
             "Sanitized allowlisted diagnostics only. No model, companion files, credentials or transcript is attached. Attribution remains provisional.",
             "",
-            f"<!-- openstudio-ai-incident:{identity} -->",
+            f"<!-- openstudio-si-incident:{identity} -->",
             "",
         ]
     )
@@ -1273,7 +1322,7 @@ def main():
         type=Path,
         default=Path(
             os.environ.get(
-                "OPENSTUDIO_AI_FAILURE_DIR", str(Path.cwd() / ".openstudio_ai_failures")
+                "OPENSTUDIO_SI_FAILURE_DIR", str(Path.cwd() / ".openstudio_si_failures")
             )
         ),
     )

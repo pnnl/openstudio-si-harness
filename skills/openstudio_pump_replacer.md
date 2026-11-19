@@ -2,7 +2,7 @@
 name: openstudio-pump-replacer
 description: Replace one existing plant-loop single constant-speed pump with a variable-speed pump, or the reverse, with explicit flow/power policies and variable-speed power curve. Same-class performance changes use the in-place pump editor.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled
@@ -82,3 +82,7 @@ coverage. Report covered failures without an ad hoc substitute or broader remova
 Return output/report paths, old→new pump mapping, node preservation and warnings.
 Keep the OSM and `<stem>/` companions together; honor `requires_companion_workflow`.
 Hand sizing/simulation to the selected provider separately.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to check whether variable-flow or variable-speed control is required for the plant (`system_requirements_hydronic_variable_flow`) and use the result to support the requested class change. The explicit curve, minimum flow and flow/power policies still come from the user. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.

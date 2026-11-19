@@ -9,7 +9,7 @@ import pytest
 
 import cli
 from cli import main
-from openstudio_ai_mcp.runtime.learning_store import LearningStore
+from openstudio_si_mcp.runtime.learning_store import LearningStore
 
 
 def test_cli_version_prints_version(capsys) -> None:
@@ -29,13 +29,13 @@ def test_cli_paths_json_reports_runtime_paths(capsys) -> None:
 def test_cli_doctor_json_reports_mcp_readiness(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
-    from openstudio_ai_mcp.sdk_docs import lookup as sdk_docs_lookup
+    from openstudio_si_mcp.sdk_docs import lookup as sdk_docs_lookup
 
     # This test's documented class counts belong to the bundled 3.10 fixture.
     monkeypatch.setattr(sdk_docs_lookup, "OPENSTUDIO_SDK_DOCS_VERSION", "3.10.0")
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
     monkeypatch.setattr(
         cli,
@@ -85,7 +85,7 @@ def test_cli_doctor_reports_uninitialized_storage_without_creating_it(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     data_dir = tmp_path / "runtime-data"
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert main(["doctor", "--json"]) == 1
     payload = json.loads(capsys.readouterr().out)
@@ -99,7 +99,7 @@ def test_cli_install_runtime_initializes_storage(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     data_dir = tmp_path / "runtime-data"
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert main(["install-runtime"]) == 0
     captured = capsys.readouterr()
@@ -111,7 +111,7 @@ def test_cli_learning_curates_measure_candidates_and_requires_prune_confirmation
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     data_dir = tmp_path / "runtime-data"
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     store = LearningStore(data_dir / "learning.sqlite")
     for workflow_id in ("workflow-1", "workflow-2", "workflow-3"):
         store.capture_event(
@@ -154,7 +154,7 @@ def test_cli_configure_openstudio_persists_confirmed_executable(
     executable.write_text("#!/bin/sh\necho 3.0.0-rc1+baflkdhsia\n", encoding="utf-8")
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "runtime-data"
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert main(["configure-openstudio", "--path", str(executable)]) == 0
 
@@ -171,7 +171,7 @@ def test_cli_configure_openstudio_resolves_relative_path_before_probing(
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "runtime-data"
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert main(["configure-openstudio", "--path", "openstudio"]) == 0
 
@@ -187,7 +187,7 @@ def test_cli_configure_openstudio_rejects_unrecognized_executable(
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "runtime-data"
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
 
     assert main(["configure-openstudio", "--path", str(executable)]) == 2
 
@@ -240,7 +240,7 @@ def test_cli_doctor_text_output_reports_checks(
 ) -> None:
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
     monkeypatch.setattr(
         cli,
@@ -275,7 +275,7 @@ def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
 ) -> None:
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_SDK_DOCS_DIR", str(tmp_path / "missing-sdk-docs"))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
     monkeypatch.setattr(
@@ -299,7 +299,7 @@ def test_cli_doctor_falls_back_from_invalid_sdk_docs_override(
     assert payload["mcp_ready"] is True
     assert payload["sdk_docs"]["ok"] is True
     assert payload["sdk_docs"]["source"] == "bundled_fallback"
-    assert payload["sdk_docs"]["path"].endswith("openstudio_ai_mcp/sdk_docs/docs")
+    assert payload["sdk_docs"]["path"].endswith("openstudio_si_mcp/sdk_docs/docs")
     assert payload["sdk_docs"]["override_path"] == str(tmp_path / "missing-sdk-docs")
     assert (
         "using the bundled SDK documentation" in payload["sdk_docs"]["override_warning"]
@@ -314,7 +314,7 @@ def test_cli_doctor_text_reports_missing_openstudio_sdk(
 ) -> None:
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
     monkeypatch.setattr(
         cli,
@@ -353,7 +353,7 @@ def test_cli_doctor_reports_plugin_runtime_contract_mismatch(
 ) -> None:
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.setenv("OPENSTUDIO_PATH", "/fake/openstudio")
     monkeypatch.setattr(
         cli,
@@ -408,7 +408,7 @@ def test_cli_doctor_blocks_core_readiness_when_openstudio_is_missing(
 ) -> None:
     data_dir = tmp_path / "runtime-data"
     (data_dir / "workspace").mkdir(parents=True)
-    monkeypatch.setenv("OPENSTUDIO_AI_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("OPENSTUDIO_SI_DATA_DIR", str(data_dir))
     monkeypatch.delenv("OPENSTUDIO_PATH", raising=False)
     monkeypatch.setattr(
         cli, "resolve_openstudio_executable_with_source", lambda: (None, None)
@@ -532,11 +532,11 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
         == 0
     )
 
-    plugin_dir = tmp_path / "openstudio-ai"
+    plugin_dir = tmp_path / "openstudio-si"
     mcp_json = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    assert mcp_json["mcpServers"]["openstudio_ai"]["command"] == "uv"
-    assert (plugin_dir / "skills" / "setup-openstudio-ai" / "SKILL.md").exists()
-    assert not (plugin_dir / "skills" / "setup-openstudio-ai" / "scripts").exists()
+    assert mcp_json["mcpServers"]["openstudio_si"]["command"] == "uv"
+    assert (plugin_dir / "skills" / "setup-openstudio-si" / "SKILL.md").exists()
+    assert not (plugin_dir / "skills" / "setup-openstudio-si" / "scripts").exists()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
     )
@@ -559,8 +559,8 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
         == 0
     )
 
-    claude_plugin = tmp_path / "openstudio-ai"
-    codex_plugin = tmp_path / "plugins" / "openstudio-ai"
+    claude_plugin = tmp_path / "openstudio-si"
+    codex_plugin = tmp_path / "plugins" / "openstudio-si"
     assert (claude_plugin / ".claude-plugin" / "plugin.json").exists()
     assert (codex_plugin / ".codex-plugin" / "plugin.json").exists()
     assert (tmp_path / ".claude-plugin" / "marketplace.json").exists()
@@ -569,8 +569,8 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
 
     for plugin in (claude_plugin, codex_plugin):
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
-        assert set(config["mcpServers"]) == {"openstudio_ai"}
-        assert config["mcpServers"]["openstudio_ai"]["command"] == "uv"
+        assert set(config["mcpServers"]) == {"openstudio_si"}
+        assert config["mcpServers"]["openstudio_si"]["command"] == "uv"
 
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme
@@ -578,20 +578,20 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
     assert (
         (tmp_path / "INSTALL.claude.md")
         .read_text(encoding="utf-8")
-        .startswith("# Install OpenStudio AI In Claude Code")
+        .startswith("# Install OpenStudio SI In Claude Code")
     )
     assert (
         (tmp_path / "INSTALL.codex.md")
         .read_text(encoding="utf-8")
-        .startswith("# Install OpenStudio AI In Codex")
+        .startswith("# Install OpenStudio SI In Codex")
     )
 
     provenance = json.loads((tmp_path / ".generated.json").read_text(encoding="utf-8"))
     assert provenance["schema_version"] == 1
-    assert provenance["generator"] == "openstudio-ai export marketplace"
-    assert provenance["package"]["name"] == "openstudio-ai"
+    assert provenance["generator"] == "openstudio-si export marketplace"
+    assert provenance["package"]["name"] == "openstudio-si"
     assert provenance["plugin"] == {
-        "name": "openstudio-ai",
+        "name": "openstudio-si",
         "mcp_interface_contract_version": "6.0",
         "runtime_mode": "marketplace",
     }
@@ -615,7 +615,7 @@ def test_cli_validate_export(tmp_path: Path) -> None:
         == 0
     )
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 0
     )
@@ -652,8 +652,8 @@ def test_cli_validate_export_rejects_missing_marketplace_setup(tmp_path: Path) -
         == 0
     )
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
-    (plugin_dir / "skills" / "doctor-openstudio-ai" / "SKILL.md").unlink()
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
+    (plugin_dir / "skills" / "doctor-openstudio-si" / "SKILL.md").unlink()
     assert (
         main(["validate-export", str(plugin_dir), "--runtime-mode", "marketplace"]) == 1
     )
@@ -678,10 +678,10 @@ def test_cli_validate_export_rejects_missing_compatibility_metadata(
         == 0
     )
 
-    plugin_dir = tmp_path / "openstudio-ai"
+    plugin_dir = tmp_path / "openstudio-si"
     mcp_path = plugin_dir / ".mcp.json"
     mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
-    del mcp_config["mcpServers"]["openstudio_ai"]["env"]
+    del mcp_config["mcpServers"]["openstudio_si"]["env"]
     mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
 
     assert (
@@ -708,13 +708,13 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
         == 0
     )
 
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     mcp_path = plugin_dir / ".mcp.json"
     mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
-    server = mcp_config["mcpServers"]["openstudio_ai"]
-    server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] = "0.0.1"
+    server = mcp_config["mcpServers"]["openstudio_si"]
+    server["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"] = "0.0.1"
     from_index = server["args"].index("--from") + 1
-    server["args"][from_index] = "openstudio-ai==0.0.1"
+    server["args"][from_index] = "openstudio-si==0.0.1"
     mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
 
     assert (
@@ -737,8 +737,8 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
 @pytest.mark.parametrize(
     "launch_args",
     [
-        ["openstudio-ai-mcp", "--transport", "stdio"],
-        ["--from", "openstudio-ai", "openstudio-ai-mcp", "--transport", "stdio"],
+        ["openstudio-si-mcp", "--transport", "stdio"],
+        ["--from", "openstudio-si", "openstudio-si-mcp", "--transport", "stdio"],
         "pin-mismatch",
     ],
     ids=["unpinned", "unversioned", "pin-differs-from-declared-version"],
@@ -761,12 +761,12 @@ def test_cli_validate_export_rejects_incomplete_marketplace_launch(
         )
         == 0
     )
-    plugin_dir = tmp_path / "plugins" / "openstudio-ai"
+    plugin_dir = tmp_path / "plugins" / "openstudio-si"
     mcp_path = plugin_dir / ".mcp.json"
     mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
-    server = mcp_config["mcpServers"]["openstudio_ai"]
+    server = mcp_config["mcpServers"]["openstudio_si"]
     if launch_args == "pin-mismatch":
-        server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] = "0.0.1"
+        server["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"] = "0.0.1"
     else:
         server["args"] = launch_args
     mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")

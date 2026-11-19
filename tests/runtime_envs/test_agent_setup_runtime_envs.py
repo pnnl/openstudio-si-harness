@@ -3,7 +3,7 @@
 Opt-in twice: Docker tests must be enabled and a model API key configured.
 
     cp tests/runtime_envs/.env.example tests/runtime_envs/.env   # add LLM_API_KEY
-    OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1 \\
+    OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1 \\
         uv run --extra dev --with openai==2.6.1 pytest tests/runtime_envs -m runtime_env_agent -v
 
 Model behavior is not deterministic, so assertions target outcomes the skill
@@ -74,7 +74,7 @@ def test_agent_bootstraps_uv_with_approval(env_pool, llm_settings, observe) -> N
 
     assert_asked_before(transcript, "pipx install uv")
     for item in transcript.commands:
-        assert "pipx install openstudio-ai" not in item["command"], item
+        assert "pipx install openstudio-si" not in item["command"], item
     assert env.exec(["test", "-x", f"{HOME}/.local/bin/uvx"]).returncode == 0
     doctor = independent_doctor(env, path=PIPX_PATH)
     assert doctor["plugin_ready"] is True, doctor["diagnostics"]
@@ -112,9 +112,9 @@ def test_agent_leaves_legacy_pipx_runtime_alone(
     used_bare_cli = [
         item["command"]
         for item in transcript.commands
-        if item["command"].lstrip().startswith("openstudio-ai ")
+        if item["command"].lstrip().startswith("openstudio-si ")
     ]
-    observe("legacy-pipx", agent_used_bare_openstudio_ai=used_bare_cli)
+    observe("legacy-pipx", agent_used_bare_openstudio_si=used_bare_cli)
     doctor = independent_doctor(env)
     assert doctor["plugin_ready"] is True, doctor["diagnostics"]
     assert_finished_honestly(transcript, doctor)

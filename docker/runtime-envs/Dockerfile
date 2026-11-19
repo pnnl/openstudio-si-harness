@@ -9,7 +9,7 @@
 #
 # Build one environment manually:
 #   docker build -f docker/runtime-envs/Dockerfile --target uv-only \
-#       -t openstudio-ai-runtime-env:uv-only .
+#       -t openstudio-si-runtime-env:uv-only .
 #
 # Do not add a --platform override: every base image used here publishes native
 # linux/amd64 and linux/arm64 manifests, and `openstudio` publishes wheels for
@@ -28,7 +28,7 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-bin
 #   /exports/release-sim/  exports after a simulated release: the version is
 #                          bumped to SIM_VERSION and the matching wheel is
 #                          provided through UV_FIND_LINKS=/opt/wheels
-#   /wheels/               the simulated-release openstudio-ai wheel
+#   /wheels/               the simulated-release openstudio-si wheel
 #   /wheelhouse/           every wheel needed to run offline (air-gap profile)
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
@@ -54,12 +54,12 @@ uv run --frozen --no-sync python - "$dest" <<'PY'
 import json, sys
 from pathlib import Path
 dest = Path(sys.argv[1])
-config = json.loads((dest / "claude/openstudio-ai/.mcp.json").read_text())
+config = json.loads((dest / "claude/openstudio-si/.mcp.json").read_text())
 server = next(iter(config["mcpServers"].values()))
 args = server["args"]
 spec = args[args.index("-c") + 2 : args.index("--")]
 (dest / "uvx-spec-args").write_text(" ".join(spec) + "\n")
-(dest / "plugin-version").write_text(server["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] + "\n")
+(dest / "plugin-version").write_text(server["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"] + "\n")
 PY
 EOF
 RUN chmod +x /usr/local/bin/export-plugins && export-plugins /exports/as-is
@@ -77,13 +77,13 @@ RUN set -eu; \
 
 # Offline wheelhouse for the simulated release on this architecture and Python.
 RUN python -m pip download --only-binary=:all: --dest /wheelhouse \
-        /wheels/openstudio_ai-*.whl "openstudio==3.11.0" \
+        /wheels/openstudio_si-*.whl "openstudio==3.11.0" \
     && cp /wheels/*.whl /wheelhouse/
 
 # ---------------------------------------------------------------------------
 # Shared layer for every user machine: exports, the simulated-release wheel, and
 # a non-root modeler account. UV_FIND_LINKS stands in for "the matching
-# openstudio-ai release has been published"; it does not shadow PyPI for the
+# openstudio-si release has been published"; it does not shadow PyPI for the
 # as-is pin because /opt/wheels contains only SIM_VERSION.
 # ---------------------------------------------------------------------------
 FROM scratch AS artifacts
@@ -99,7 +99,7 @@ FROM debian:bookworm-slim AS uv-only
 COPY --from=uv-bin /uv /uvx /usr/local/bin/
 COPY --from=artifacts /opt /opt
 RUN useradd --create-home --shell /bin/sh modeler
-ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_AI_ENV_PROFILE=uv-only
+ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_SI_ENV_PROFILE=uv-only
 USER modeler
 WORKDIR /home/modeler/project
 CMD ["sleep", "infinity"]
@@ -107,8 +107,8 @@ CMD ["sleep", "infinity"]
 # uv-warm: uv-only after the setup skill's `install-runtime` step filled uv's
 # cache. Used for startup-time and --network none checks.
 FROM uv-only AS uv-warm
-ENV OPENSTUDIO_AI_ENV_PROFILE=uv-warm
-RUN uvx $(cat /opt/exports/release-sim/uvx-spec-args) openstudio-ai install-runtime
+ENV OPENSTUDIO_SI_ENV_PROFILE=uv-warm
+RUN uvx $(cat /opt/exports/release-sim/uvx-spec-args) openstudio-si install-runtime
 
 # ---------------------------------------------------------------------------
 # system-py310: a machine with an older system Python and a project .venv that
@@ -119,7 +119,7 @@ ARG UV_VERSION
 RUN python -m pip install --no-cache-dir "uv==${UV_VERSION}"
 COPY --from=artifacts /opt /opt
 RUN useradd --create-home --shell /bin/sh modeler
-ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_AI_ENV_PROFILE=system-py310
+ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_SI_ENV_PROFILE=system-py310
 USER modeler
 WORKDIR /home/modeler/project
 RUN python -m venv .venv
@@ -134,7 +134,7 @@ FROM python:3.12-slim-bookworm AS no-uv
 RUN python -m pip install --no-cache-dir pipx
 COPY --from=artifacts /opt /opt
 RUN useradd --create-home --shell /bin/sh modeler
-ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_AI_ENV_PROFILE=no-uv
+ENV UV_FIND_LINKS=/opt/wheels OPENSTUDIO_SI_ENV_PROFILE=no-uv
 USER modeler
 WORKDIR /home/modeler/project
 CMD ["sleep", "infinity"]
@@ -152,7 +152,7 @@ RUN useradd --create-home --shell /bin/sh modeler
 USER modeler
 ENV PATH=/home/modeler/.local/bin:${PATH} \
     UV_FIND_LINKS=/opt/wheels \
-    OPENSTUDIO_AI_ENV_PROFILE=legacy-pipx \
+    OPENSTUDIO_SI_ENV_PROFILE=legacy-pipx \
     LEGACY_RUNTIME_VERSION=${LEGACY_RUNTIME_VERSION}
 RUN pipx install "openstudio-ai==${LEGACY_RUNTIME_VERSION}"
 WORKDIR /home/modeler/project
@@ -169,11 +169,11 @@ COPY --from=uv-bin /uv /uvx /usr/local/bin/
 COPY --from=artifacts /opt /opt
 RUN useradd --create-home --shell /bin/sh modeler
 ENV UV_FIND_LINKS=/opt/wheels \
-    OPENSTUDIO_AI_ENV_PROFILE=native-openstudio \
+    OPENSTUDIO_SI_ENV_PROFILE=native-openstudio \
     NATIVE_OPENSTUDIO_VERSION=${NATIVE_OPENSTUDIO_VERSION}
 USER modeler
 WORKDIR /home/modeler/project
-RUN uvx $(cat /opt/exports/release-sim/uvx-spec-args) openstudio-ai install-runtime
+RUN uvx $(cat /opt/exports/release-sim/uvx-spec-args) openstudio-si install-runtime
 CMD ["sleep", "infinity"]
 
 # ---------------------------------------------------------------------------
@@ -192,6 +192,6 @@ RUN uv python install 3.12
 ENV UV_OFFLINE=1 \
     UV_FIND_LINKS=/opt/wheelhouse \
     UV_PYTHON_DOWNLOADS=never \
-    OPENSTUDIO_AI_ENV_PROFILE=airgap
+    OPENSTUDIO_SI_ENV_PROFILE=airgap
 WORKDIR /home/modeler/project
 CMD ["sleep", "infinity"]

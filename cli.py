@@ -20,20 +20,20 @@ from adapters.runtime_helpers import (
     marketplace_mcp_args,
     runtime_uvx_command,
 )
-from openstudio_ai_mcp.runtime_config import (
+from openstudio_si_mcp.runtime_config import (
     openstudio_version_from_output,
     resolve_openstudio_executable_with_source,
     set_openstudio_path,
     user_data_dir,
 )
-from openstudio_ai_mcp.compatibility import (
+from openstudio_si_mcp.compatibility import (
     PLUGIN_CONTRACT_VERSION,
     evaluate_plugin_compatibility,
     package_version,
     plugin_mcp_environment,
 )
-from openstudio_ai_mcp.runtime.learning_curation import curate_learning
-from openstudio_ai_mcp.runtime.learning_store import LearningStore
+from openstudio_si_mcp.runtime.learning_curation import curate_learning
+from openstudio_si_mcp.runtime.learning_store import LearningStore
 
 try:
     import tomllib
@@ -75,7 +75,7 @@ def _launched_by_uvx() -> bool:
     """Whether this process runs in uv's ephemeral `uvx` environment.
 
     Marketplace plugins start the runtime with `uvx`, which sets `UV` and runs
-    from uv's `archive-v0` cache. There, `openstudio-ai` is not on the user's
+    from uv's `archive-v0` cache. There, `openstudio-si` is not on the user's
     PATH, so remediation must name the pinned `uvx` command instead.
     """
     return bool(os.getenv("UV")) and "archive-v0" in Path(sys.prefix).parts
@@ -84,16 +84,16 @@ def _launched_by_uvx() -> bool:
 def _runtime_command(*args: str) -> str:
     """Return the runtime CLI command a user can run in this installation mode."""
     if _launched_by_uvx():
-        return runtime_uvx_command("openstudio-ai", *args)
-    return shlex.join(["openstudio-ai", *args])
+        return runtime_uvx_command("openstudio-si", *args)
+    return shlex.join(["openstudio-si", *args])
 
 
 def _reinstall_hint() -> str:
     """Return how to rebuild a damaged runtime in this installation mode."""
     if _launched_by_uvx():
-        rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+        rebuild = runtime_uvx_command("openstudio-si", "install-runtime", reinstall=True)
         return f"Rebuild the cached runtime with `{rebuild}`"
-    return f"Reinstall openstudio-ai, or run `{_runtime_command('repair')}` if this is an editable development checkout"
+    return f"Reinstall openstudio-si, or run `{_runtime_command('repair')}` if this is an editable development checkout"
 
 
 def _version_tuple(value: object) -> tuple[int, ...] | None:
@@ -254,7 +254,7 @@ def _sdk_docs_probe() -> dict[str, Any]:
     """Verify the configured SDK YAML bundle has a readable metadata header."""
     configured_dir = os.getenv("OPENSTUDIO_SDK_DOCS_DIR", "").strip()
     try:
-        from openstudio_ai_mcp.sdk_docs import OpenStudioSdkDocLookup
+        from openstudio_si_mcp.sdk_docs import OpenStudioSdkDocLookup
 
         lookup = OpenStudioSdkDocLookup.from_env()
         docs_dir = lookup.docs_dir
@@ -369,7 +369,7 @@ def _runtime_storage_status(workspace_dir: Path) -> dict[str, Any]:
 def _sqlite_registry_probe() -> dict[str, Any]:
     """Check SQLite support in a temporary directory without touching user data."""
     try:
-        with tempfile.TemporaryDirectory(prefix="openstudio-ai-doctor-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="openstudio-si-doctor-") as tmp:
             db_path = Path(tmp) / "doctor_registry_probe.sqlite"
             with sqlite3.connect(str(db_path)) as conn:
                 conn.execute(
@@ -409,7 +409,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             _diagnostic(
                 "python_version_unsupported",
                 "error",
-                "The current Python version is unsupported for OpenStudio AI.",
+                "The current Python version is unsupported for OpenStudio SI.",
                 "Install Python 3.10 or newer, then rerun setup with that Python.",
                 (
                     f"Found Python {checks['python']['version']}; requires "
@@ -442,14 +442,14 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
-    mcp_command = checks["commands"]["openstudio_ai_mcp"]
+    mcp_command = checks["commands"]["openstudio_si_mcp"]
     if not mcp_command["available"]:
         diagnostics.append(
             _diagnostic(
                 "mcp_command_missing",
                 "error",
-                "The OpenStudio AI MCP command is not available to this Python environment.",
-                "Run the OpenStudio AI setup workflow to install or repair the runtime, then reload or reconnect the plugin.",
+                "The OpenStudio SI MCP command is not available to this Python environment.",
+                "Run the OpenStudio SI setup workflow to install or repair the runtime, then reload or reconnect the plugin.",
             )
         )
     elif not mcp_command["help_probe"].get("ok"):
@@ -458,8 +458,8 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             _diagnostic(
                 "mcp_command_failed",
                 "error",
-                "The OpenStudio AI MCP command was found but could not start cleanly.",
-                "Run the OpenStudio AI setup workflow to reinstall the runtime, then reload or reconnect the plugin.",
+                "The OpenStudio SI MCP command was found but could not start cleanly.",
+                "Run the OpenStudio SI setup workflow to reinstall the runtime, then reload or reconnect the plugin.",
                 str(
                     probe.get("stderr") or probe.get("error") or "unknown startup error"
                 ),
@@ -472,8 +472,8 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             _diagnostic(
                 "mcp_startup_failed",
                 "error",
-                "The OpenStudio AI MCP runtime could not initialize its services.",
-                "Run the OpenStudio AI setup workflow to repair the runtime. If the issue remains, share the technical detail with your support contact.",
+                "The OpenStudio SI MCP runtime could not initialize its services.",
+                "Run the OpenStudio SI setup workflow to repair the runtime. If the issue remains, share the technical detail with your support contact.",
                 str(mcp_startup.get("error") or "unknown startup error"),
             )
         )
@@ -484,7 +484,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
             _diagnostic(
                 "runtime_storage_not_ready",
                 "error",
-                storage.get("message", "OpenStudio AI runtime storage is not ready."),
+                storage.get("message", "OpenStudio SI runtime storage is not ready."),
                 f"Run `{_runtime_command('install-runtime')}` to initialize user-local storage.",
                 storage.get("error"),
             )
@@ -514,7 +514,7 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
                     f"{_reinstall_hint()}, then rerun doctor."
                     if _launched_by_uvx()
                     else "Install the native OpenStudio application, then reinstall "
-                    "openstudio-ai and rerun doctor."
+                    "openstudio-si and rerun doctor."
                 ),
                 str(checks["python_openstudio"].get("error") or "SDK import failed"),
             )
@@ -584,7 +584,7 @@ def _doctor_payload(
             "workspace_dir": str(workspace_dir),
         },
         "commands": {
-            "openstudio_ai_mcp": _command_available("openstudio-ai-mcp"),
+            "openstudio_si_mcp": _command_available("openstudio-si-mcp"),
             "openstudio": _command_available("openstudio"),
         },
         "imports": {},
@@ -606,20 +606,20 @@ def _doctor_payload(
     }
 
     try:
-        from openstudio_ai_mcp.server import BASE_DIR, OpenStudioService, create_server
+        from openstudio_si_mcp.server import BASE_DIR, OpenStudioService, create_server
 
-        checks["imports"]["openstudio_ai_mcp"] = {"ok": True, "base_dir": str(BASE_DIR)}
+        checks["imports"]["openstudio_si_mcp"] = {"ok": True, "base_dir": str(BASE_DIR)}
     except (
         Exception
     ) as exc:  # pragma: no cover - exact import failure is environment-specific.
-        checks["imports"]["openstudio_ai_mcp"] = {"ok": False, "error": str(exc)}
+        checks["imports"]["openstudio_si_mcp"] = {"ok": False, "error": str(exc)}
         OpenStudioService = None  # type: ignore[assignment]
         create_server = None  # type: ignore[assignment]
 
     if create_server is not None:
         try:
             with tempfile.TemporaryDirectory(
-                prefix="openstudio-ai-mcp-startup-"
+                prefix="openstudio-si-mcp-startup-"
             ) as tmp:
                 create_server(
                     workspace_root=Path(tmp) / "workspace",
@@ -631,9 +631,9 @@ def _doctor_payload(
         ) as exc:  # pragma: no cover - environment-specific startup failures.
             checks["mcp_startup"] = {"ok": False, "error": str(exc)}
 
-    mcp_command = checks["commands"]["openstudio_ai_mcp"]
+    mcp_command = checks["commands"]["openstudio_si_mcp"]
     if mcp_command["available"]:
-        mcp_probe = _run_probe([mcp_command["path"] or "openstudio-ai-mcp", "--help"])
+        mcp_probe = _run_probe([mcp_command["path"] or "openstudio-si-mcp", "--help"])
         mcp_command["help_probe"] = mcp_probe
     else:
         mcp_command["help_probe"] = {"ok": False, "error": "command not found"}
@@ -642,7 +642,7 @@ def _doctor_payload(
 
     if OpenStudioService is not None:
         try:
-            with tempfile.TemporaryDirectory(prefix="openstudio-ai-service-") as tmp:
+            with tempfile.TemporaryDirectory(prefix="openstudio-si-service-") as tmp:
                 service = OpenStudioService(
                     workspace_root=Path(tmp) / "workspace",
                     learning_db_path=Path(tmp) / "learning.sqlite",
@@ -701,12 +701,12 @@ def _doctor_payload(
         )
 
     checks["mcp_ready"] = (
-        checks["imports"].get("openstudio_ai_mcp", {}).get("ok") is True
+        checks["imports"].get("openstudio_si_mcp", {}).get("ok") is True
         and checks["assets"].get("ok") is True
         and checks["runtime_storage"].get("ok") is True
         and checks["sqlite_registry"].get("ok") is True
         and checks["mcp_startup"].get("ok") is True
-        and checks["commands"]["openstudio_ai_mcp"].get("help_probe", {}).get("ok")
+        and checks["commands"]["openstudio_si_mcp"].get("help_probe", {}).get("ok")
         is True
         and checks["measures"].get("ok") is True
     )
@@ -734,7 +734,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         print(json.dumps(payload, indent=2, ensure_ascii=True))
         return
 
-    print(f"OpenStudio AI {payload.get('version', _version())}")
+    print(f"OpenStudio SI {payload.get('version', _version())}")
     if "mcp_ready" in payload:
         status = "ready" if payload["mcp_ready"] else "not ready"
         print(f"MCP runtime status: {status}")
@@ -787,7 +787,7 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
                 print(f"  Technical detail: {diagnostic['detail']}")
     if payload.get("core_ready") is False:
         print(
-            "\nOpenStudio AI is not ready for energy modeling. Resolve the blocking "
+            "\nOpenStudio SI is not ready for energy modeling. Resolve the blocking "
             "checks above, reconnect the MCP server, and rerun setup."
         )
         storage_message = payload.get("runtime_storage", {}).get("message")
@@ -833,7 +833,7 @@ def _cmd_install_runtime(_: argparse.Namespace) -> int:
     data_dir = _user_data_dir()
     workspace_dir = data_dir / "workspace"
     workspace_dir.mkdir(parents=True, exist_ok=True)
-    print("OpenStudio AI runtime installer")
+    print("OpenStudio SI runtime installer")
     print("The runtime package is already installed if this command is available.")
     print(f"Initialized runtime workspace at: {workspace_dir}")
     print(f"Run `{_runtime_command('doctor')}` to validate MCP readiness.")
@@ -879,7 +879,7 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
 def _cmd_repair(_: argparse.Namespace) -> int:
     data_dir = _user_data_dir()
     (data_dir / "workspace").mkdir(parents=True, exist_ok=True)
-    print("OpenStudio AI repair completed non-destructive checks.")
+    print("OpenStudio SI repair completed non-destructive checks.")
     print(f"Ensured runtime workspace exists at: {data_dir / 'workspace'}")
     print(f"Run `{_runtime_command('doctor')}` for the current readiness report.")
     return 0
@@ -1030,8 +1030,8 @@ def _render_marketplace_readme(
     """Render the host-neutral release overview for a paired marketplace export."""
     revision = provenance["revision"] or "unavailable"
     return (
-        "# OpenStudio AI Plugins\n\n"
-        "This repository is a generated marketplace distribution for the OpenStudio AI "
+        "# OpenStudio SI Plugins\n\n"
+        "This repository is a generated marketplace distribution for the OpenStudio SI "
         "runtime. Do not edit generated plugin files here; change the harness source and "
         "re-export instead.\n\n"
         "## Install\n\n"
@@ -1103,8 +1103,8 @@ def _cmd_export_marketplace(args: argparse.Namespace) -> int:
 
     provenance = {
         "schema_version": 1,
-        "generator": "openstudio-ai export marketplace",
-        "package": {"name": "openstudio-ai", "version": _version()},
+        "generator": "openstudio-si export marketplace",
+        "package": {"name": "openstudio-si", "version": _version()},
         "plugin": {
             "name": args.plugin_name,
             "mcp_interface_contract_version": PLUGIN_CONTRACT_VERSION,
@@ -1216,10 +1216,10 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         return 1
 
     mcp_config = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
-    server = mcp_config.get("mcpServers", {}).get("openstudio_ai")
+    server = mcp_config.get("mcpServers", {}).get("openstudio_si")
     if not isinstance(server, dict):
         print(
-            "Export .mcp.json does not define mcpServers.openstudio_ai", file=sys.stderr
+            "Export .mcp.json does not define mcpServers.openstudio_si", file=sys.stderr
         )
         return 1
 
@@ -1230,18 +1230,18 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         for key in required_metadata
     ):
         print(
-            "Export MCP configuration is missing the OpenStudio AI plugin compatibility metadata.",
+            "Export MCP configuration is missing the OpenStudio SI plugin compatibility metadata.",
             file=sys.stderr,
         )
         return 1
 
     if args.runtime_mode == "installed":
-        if server.get("command") != "openstudio-ai-mcp" or server.get("args") != [
+        if server.get("command") != "openstudio-si-mcp" or server.get("args") != [
             "--transport",
             "stdio",
         ]:
             print(
-                "Installed exports must point to openstudio-ai-mcp.",
+                "Installed exports must point to openstudio-si-mcp.",
                 file=sys.stderr,
             )
             print(f"Actual: {server}", file=sys.stderr)
@@ -1251,7 +1251,7 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         # Validate the complete pinned launch. Non-strict mode accepts an older
         # export by pinning the runtime release that export declares; strict mode
         # requires the current release.
-        declared_version = server_env.get("OPENSTUDIO_AI_PLUGIN_VERSION")
+        declared_version = server_env.get("OPENSTUDIO_SI_PLUGIN_VERSION")
         expected_args = (
             marketplace_mcp_args()
             if args.strict_runtime_version
@@ -1261,9 +1261,9 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
             server.get("args") != expected_args
         ):
             print(
-                "Marketplace exports must launch openstudio-ai-mcp through the uv "
+                "Marketplace exports must launch openstudio-si-mcp through the uv "
                 "launcher with a pinned spec that matches the declared "
-                "OPENSTUDIO_AI_PLUGIN_VERSION.",
+                "OPENSTUDIO_SI_PLUGIN_VERSION.",
                 file=sys.stderr,
             )
             print(f"Expected args: {expected_args}", file=sys.stderr)
@@ -1283,7 +1283,7 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
         args_list = server.get("args", [])
         if server.get("command") != sys.executable or args_list[:2] != [
             "-m",
-            "openstudio_ai_mcp.server",
+            "openstudio_si_mcp.server",
         ]:
             print(
                 "Local exports must start the source-checkout MCP module.",
@@ -1294,15 +1294,15 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
     if args.runtime_mode == "marketplace":
         marketplace_required = (
             [
-                "skills/setup-openstudio-ai/SKILL.md",
-                "skills/doctor-openstudio-ai/SKILL.md",
-                "skills/repair-openstudio-ai/SKILL.md",
+                "skills/setup-openstudio-si/SKILL.md",
+                "skills/doctor-openstudio-si/SKILL.md",
+                "skills/repair-openstudio-si/SKILL.md",
             ]
             if is_claude
             else [
-                "skills/setup-openstudio-ai/SKILL.md",
-                "skills/doctor-openstudio-ai/SKILL.md",
-                "skills/repair-openstudio-ai/SKILL.md",
+                "skills/setup-openstudio-si/SKILL.md",
+                "skills/doctor-openstudio-si/SKILL.md",
+                "skills/repair-openstudio-si/SKILL.md",
             ]
         )
         missing_marketplace = [
@@ -1327,9 +1327,9 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Create the OpenStudio AI CLI parser."""
+    """Create the OpenStudio SI CLI parser."""
     parser = argparse.ArgumentParser(
-        prog="openstudio-ai", description="OpenStudio AI runtime CLI"
+        prog="openstudio-si", description="OpenStudio SI runtime CLI"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -1354,7 +1354,7 @@ def _build_parser() -> argparse.ArgumentParser:
     paths.set_defaults(func=_cmd_paths)
 
     version = subparsers.add_parser(
-        "version", help="Print installed OpenStudio AI version."
+        "version", help="Print installed OpenStudio SI version."
     )
     version.set_defaults(func=_cmd_version)
 
@@ -1445,7 +1445,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory to write the export into.",
     )
     export.add_argument(
-        "--plugin-name", default="openstudio-ai", help="Plugin folder/name."
+        "--plugin-name", default="openstudio-si", help="Plugin folder/name."
     )
     export.add_argument(
         "--workspace-root",
@@ -1515,7 +1515,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point for the `openstudio-ai` console script."""
+    """Entry point for the `openstudio-si` console script."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     return int(args.func(args))

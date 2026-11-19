@@ -121,10 +121,10 @@ def test_claude_and_codex_exports_share_one_pinned_launch(env_pool, export) -> N
     assert args[:4] == ["run", "--no-project", "--python", RUNTIME_PYTHON_RANGE]
     spec = args[args.index("-c") + 2 : args.index("--")]
     assert spec[spec.index("--python") + 1] == RUNTIME_PYTHON_RANGE
-    assert spec[spec.index("--from") + 1] == f"openstudio-ai=={version}"
+    assert spec[spec.index("--from") + 1] == f"openstudio-si=={version}"
     assert spec[spec.index("--with") + 1] == f"openstudio=={PINNED_SDK_VERSION}"
     assert args[args.index("--") + 1 :] == MCP_TAIL
-    assert claude["env"]["OPENSTUDIO_AI_PLUGIN_VERSION"] == version
+    assert claude["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"] == version
     for value in [*args, *claude["env"].values()]:
         assert not value.startswith(("/Users/", "/home/", "/opt/")), value
 
@@ -140,7 +140,7 @@ def test_cold_first_launch_starts_pinned_runtime(env_pool, observe) -> None:
     run = env.run_mcp([STATUS, COMPATIBILITY], timeout=COLD_START_LIMIT_S)
 
     observe("uv-only", cold_initialize_seconds=round(run.initialize_seconds, 1))
-    assert run.server_name == "openstudio-ai-mcp"
+    assert run.server_name == "openstudio-si-mcp"
     assert "runtime_openstudio_status" in run.tool_names
     assert_pinned_runtime(env, run.results)
 
@@ -179,7 +179,7 @@ def test_host_default_python_cannot_run_sdk_scripts(env_pool) -> None:
 @runtime_env("uv-only")
 def test_doctor_after_setup_is_plugin_ready_without_native_cli(env_pool) -> None:
     env = env_pool("uv-only")
-    install = env.exec(env.runtime_argv("openstudio-ai", "install-runtime"))
+    install = env.exec(env.runtime_argv("openstudio-si", "install-runtime"))
     assert install.returncode == 0, install.describe()
 
     doctor = env.doctor()
@@ -189,7 +189,7 @@ def test_doctor_after_setup_is_plugin_ready_without_native_cli(env_pool) -> None
     assert payload["core_ready"] is False
     assert payload["python_openstudio"] == {"ok": True, "version": PINNED_SDK_VERSION}
     assert payload["openstudio"]["ok"] is False
-    assert payload["commands"]["openstudio_ai_mcp"]["path"].startswith(
+    assert payload["commands"]["openstudio_si_mcp"]["path"].startswith(
         f"{HOME}/.cache/uv/"
     )
 
@@ -228,7 +228,7 @@ def test_reinstall_rebuilds_runtime_environment(env_pool, observe) -> None:
     before = runtime_python(env)["executable"]
 
     rebuild = env.exec(
-        env.runtime_argv("openstudio-ai", "install-runtime", reinstall=True)
+        env.runtime_argv("openstudio-si", "install-runtime", reinstall=True)
     )
     assert rebuild.returncode == 0, rebuild.describe()
     after = runtime_python(env)["executable"]
@@ -325,7 +325,7 @@ def test_warm_cache_launches_offline_after_index_cache_expires(
     env = env_pool("uv-warm", network="none")
     # --refresh makes every cached index response stale, as it is ~10 minutes
     # after the last launch.
-    argv = env.runtime_argv("openstudio-ai", "--version")
+    argv = env.runtime_argv("openstudio-si", "--version")
     result = env.exec([argv[0], "--refresh", *argv[1:]], timeout=STARTUP_BUDGET_S * 4)
     observe(
         "uv-warm",
@@ -392,7 +392,7 @@ def test_uvx_reuses_system_python_but_not_its_packages(env_pool) -> None:
 @runtime_env("no-uv")
 def test_setup_bootstraps_uv_with_pipx_and_needs_path_fix(env_pool, observe) -> None:
     env = env_pool("no-uv", shared_container=False)
-    doctor_argv = env.runtime_argv("openstudio-ai", "doctor")
+    doctor_argv = env.runtime_argv("openstudio-si", "doctor")
 
     missing = env.sh(shlex.join(doctor_argv))
     assert missing.returncode == 127, missing.describe()
@@ -431,9 +431,9 @@ def test_uvx_launch_is_isolated_from_legacy_runtime(env_pool) -> None:
 @runtime_env("legacy-pipx")
 def test_uvx_doctor_probes_its_own_mcp_command(env_pool) -> None:
     env = env_pool("legacy-pipx")
-    env.exec(env.runtime_argv("openstudio-ai", "install-runtime"))
+    env.exec(env.runtime_argv("openstudio-si", "install-runtime"))
     payload = env.doctor().json()
-    mcp_path = payload["commands"]["openstudio_ai_mcp"]["path"]
+    mcp_path = payload["commands"]["openstudio_si_mcp"]["path"]
     assert mcp_path.startswith(f"{HOME}/.cache/uv/"), mcp_path
     assert payload["version"] == env.plugin_version()
 
@@ -463,7 +463,7 @@ def _configure_native_cli(env: RuntimeEnv) -> str:
     assert located.returncode == 0, located.describe()
     executable = located.stdout.strip()
     configure = env.exec(
-        env.runtime_argv("openstudio-ai", "configure-openstudio", "--path", executable)
+        env.runtime_argv("openstudio-si", "configure-openstudio", "--path", executable)
     )
     assert configure.returncode == 0, configure.describe()
     return executable
@@ -543,7 +543,7 @@ def test_airgap_wheelhouse_launch(env_pool, observe) -> None:
 def test_airgap_without_provisioned_python_fails_clearly(env_pool) -> None:
     env = env_pool("airgap", shared_container=False)
     result = env.exec(
-        env.runtime_argv("openstudio-ai", "--help"),
+        env.runtime_argv("openstudio-si", "--help"),
         env={"UV_PYTHON_INSTALL_DIR": "/tmp/no-python-here"},
         timeout=STARTUP_BUDGET_S * 4,
     )
@@ -567,7 +567,7 @@ def test_uv_settings_that_keep_uvx_off_pypi(
 ) -> None:
     """Which uv knobs an organization can rely on; UV_NO_INDEX alone is not one."""
     env = env_pool("airgap", shared_container=False)
-    launch = shlex.join(env.runtime_argv("openstudio-ai", "--help"))
+    launch = shlex.join(env.runtime_argv("openstudio-si", "--help"))
     result = env.sh(
         f"env -u UV_OFFLINE {settings} {launch}", timeout=STARTUP_BUDGET_S * 4
     )

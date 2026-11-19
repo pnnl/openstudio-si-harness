@@ -3,9 +3,30 @@
 from __future__ import annotations
 
 import shlex
+import shutil
 from pathlib import Path
 
-from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+from openstudio_si_mcp.compatibility import PLUGIN_CONTRACT_VERSION, package_version
+
+STANDARDS_SERVER_NAME = "building_energy_standards"
+STANDARDS_SERVER_COMMAND = "besd-mcp"
+
+
+def optional_mcp_servers(runtime_mode: str) -> dict[str, dict[str, object]]:
+    """Return optional companion MCP servers available on this machine.
+
+    The building energy standards server ships in the optional ``standards``
+    extra. It is registered only when ``besd-mcp`` is on PATH, and never for
+    marketplace exports, where the command cannot be verified at export time.
+    """
+    if runtime_mode == "marketplace" or not shutil.which(STANDARDS_SERVER_COMMAND):
+        return {}
+    return {
+        STANDARDS_SERVER_NAME: {
+            "command": STANDARDS_SERVER_COMMAND,
+            "args": ["--transport", "stdio"],
+        }
+    }
 
 # Marketplace plugins launch the runtime through `uvx` with an exact package spec,
 # so the plugin, MCP server, and SDK-script interpreter all come from one pinned,
@@ -26,7 +47,7 @@ def runtime_uvx_options(*, version: str | None = None) -> list[str]:
         "--python",
         RUNTIME_PYTHON_VERSION,
         "--from",
-        f"openstudio-ai=={version or package_version()}",
+        f"openstudio-si=={version or package_version()}",
         "--with",
         f"openstudio=={OPENSTUDIO_PYTHON_SDK_VERSION}",
     ]
@@ -56,7 +77,7 @@ def runtime_uvx_command(
 def runtime_doctor_command(*, offline: bool = False) -> str:
     """Return the doctor command that checks this plugin against its runtime."""
     return runtime_uvx_command(
-        "openstudio-ai",
+        "openstudio-si",
         "doctor",
         "--json",
         "--plugin-version",
@@ -94,7 +115,7 @@ def marketplace_mcp_args(*, version: str | None = None) -> list[str]:
         mcp_launcher_source(),
         *runtime_uvx_options(version=version),
         "--",
-        "openstudio-ai-mcp",
+        "openstudio-si-mcp",
         "--transport",
         "stdio",
     ]
@@ -112,11 +133,11 @@ def marketplace_mcp_server_config(env: dict[str, str]) -> dict[str, object]:
 
 def prepare_runtime_guidance(host: str) -> str:
     """Setup-skill text for the runtime preparation step, including its side effects."""
-    install = runtime_uvx_command("openstudio-ai", "install-runtime")
+    install = runtime_uvx_command("openstudio-si", "install-runtime")
     return (
         f"Prepare the runtime with `{install}`. Before running it, tell the user what "
         "it changes and ask for approval: it downloads about 100 MB (the pinned runtime "
-        "and its own Python) into uv's cache, and it creates OpenStudio AI's user-local "
+        "and its own Python) into uv's cache, and it creates OpenStudio SI's user-local "
         "data folder, which holds model workspaces and simulation runs; the command "
         "prints that folder's location. It does not change project files or any other "
         "Python environment. Use a long command timeout. Filling uv's cache lets the MCP "
@@ -126,10 +147,10 @@ def prepare_runtime_guidance(host: str) -> str:
 
 def doctor_triage_guidance() -> str:
     """How to act on `plugin_ready: false` without misreading a fresh machine."""
-    install = runtime_uvx_command("openstudio-ai", "install-runtime")
-    rebuild = runtime_uvx_command("openstudio-ai", "install-runtime", reinstall=True)
+    install = runtime_uvx_command("openstudio-si", "install-runtime")
+    rebuild = runtime_uvx_command("openstudio-si", "install-runtime", reinstall=True)
     offline_doctor = runtime_doctor_command(offline=True)
-    offline_install = runtime_uvx_command("openstudio-ai", "install-runtime", offline=True)
+    offline_install = runtime_uvx_command("openstudio-si", "install-runtime", offline=True)
     return (
         "If the doctor reports `plugin_ready: false`, read its `diagnostics` codes "
         "before acting. `runtime_storage_not_ready` means the runtime has not been "

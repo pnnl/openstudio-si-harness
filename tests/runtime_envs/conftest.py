@@ -2,10 +2,10 @@
 
 These tests are opt-in because they build images and download packages:
 
-    OPENSTUDIO_AI_RUNTIME_ENV_TESTS=1 uv run --extra dev pytest tests/runtime_envs -v
+    OPENSTUDIO_SI_RUNTIME_ENV_TESTS=1 uv run --extra dev pytest tests/runtime_envs -v
 
 Select environments with ``-m`` / ``-k`` (for example ``-k native``). Set
-``OPENSTUDIO_AI_RUNTIME_ENV_SKIP_BUILD=1`` to reuse already-built images.
+``OPENSTUDIO_SI_RUNTIME_ENV_SKIP_BUILD=1`` to reuse already-built images.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from runtime_env_harness import ENABLE_VAR, PROFILES, REPO_ROOT, RuntimeEnv
 
 REPORT_PATH = Path(
     os.getenv(
-        "OPENSTUDIO_AI_RUNTIME_ENV_REPORT",
+        "OPENSTUDIO_SI_RUNTIME_ENV_REPORT",
         REPO_ROOT / "outputs" / "runtime_envs" / "report.json",
     )
 )

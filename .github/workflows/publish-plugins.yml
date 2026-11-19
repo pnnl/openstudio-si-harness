@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLUGINS_REPO: pnnl/openstudio-ai-plugins
+  PLUGINS_REPO: pnnl/openstudio-si-plugins
   EXPORT_BRANCH: automated/plugin-export
   BASE_BRANCH: main
-  EXPORT_COMMAND: openstudio-ai export marketplace --runtime-mode marketplace
+  EXPORT_COMMAND: openstudio-si export marketplace --runtime-mode marketplace
 
 jobs:
   export:
@@ -65,39 +65,42 @@ jobs:
         run: |
           set -euo pipefail
           version=$(jq -er '.package.version' "${RUNNER_TEMP}/marketplace/.generated.json")
-          url="https://pypi.org/pypi/openstudio-ai/${version}/json"
+          url="https://pypi.org/pypi/openstudio-si/${version}/json"
           for attempt in 1 2 3 4 5 6; do
             if curl -fsS -o /dev/null "${url}"; then
-              echo "openstudio-ai ${version} is available on PyPI."
+              echo "openstudio-si ${version} is available on PyPI."
               published=1
               break
             fi
-            echo "openstudio-ai ${version} not on PyPI yet (attempt ${attempt}); retrying in 30s."
+            echo "openstudio-si ${version} not on PyPI yet (attempt ${attempt}); retrying in 30s."
             sleep 30
           done
           if [ -z "${published:-}" ]; then
-            echo "::error::openstudio-ai ${version} is not published on PyPI; refusing to export a marketplace that pins it."
+            echo "::error::openstudio-si ${version} is not published on PyPI; refusing to export a marketplace that pins it."
             exit 1
           fi
 
           # Existence alone accepts a reused version: an export whose version was
           # not bumped pins an older published runtime with an older contract.
           expected=$(jq -er '.plugin.mcp_interface_contract_version' "${RUNNER_TEMP}/marketplace/.generated.json")
-          actual=$(uvx --refresh-package openstudio-ai --python ">=3.10,<3.14" \
-            --from "openstudio-ai==${version}" python -c \
-            "from openstudio_ai_mcp.compatibility import PLUGIN_CONTRACT_VERSION; print(PLUGIN_CONTRACT_VERSION)")
+          actual=$(uvx --refresh-package openstudio-si --python ">=3.10,<3.14" \
+            --from "openstudio-si==${version}" python -c \
+            "from openstudio_si_mcp.compatibility import PLUGIN_CONTRACT_VERSION; print(PLUGIN_CONTRACT_VERSION)")
           if [ "${actual}" != "${expected}" ]; then
-            echo "::error::Published openstudio-ai ${version} serves MCP contract ${actual}, but this export requires ${expected}. Bump the package version and publish it before exporting."
+            echo "::error::Published openstudio-si ${version} serves MCP contract ${actual}, but this export requires ${expected}. Bump the package version and publish it before exporting."
             exit 1
           fi
-          echo "Published openstudio-ai ${version} serves MCP contract ${expected}."
+          echo "Published openstudio-si ${version} serves MCP contract ${expected}."
 
       - name: Sync generated files into plugins checkout
         run: |
           set -euo pipefail
           src="${RUNNER_TEMP}/marketplace"
 
-          for dir in openstudio-ai plugins .claude-plugin .agents; do
+          # Retire the old top-level Claude export during the marketplace rename.
+          git -C plugins-repo rm -r --ignore-unmatch -- openstudio-ai
+
+          for dir in openstudio-si plugins .claude-plugin .agents; do
             rsync -a --delete "${src}/${dir}/" "plugins-repo/${dir}/"
           done
 
@@ -137,7 +140,7 @@ jobs:
           body=$(cat <<EOF
           Automated re-export of the plugin marketplace tree. Do not edit these files manually.
 
-          - Package version: [openstudio-ai ${version}](https://pypi.org/project/openstudio-ai/${version}/)
+          - Package version: [openstudio-si ${version}](https://pypi.org/project/openstudio-si/${version}/)
           - Harness commit: ${HARNESS_SERVER}/${HARNESS_REPO}/commit/${HARNESS_SHA}
           - Command: \`${EXPORT_COMMAND}\`
           EOF

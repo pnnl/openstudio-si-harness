@@ -2,7 +2,7 @@
 name: openstudio-supply-fan-replacer
 description: Replace a directly connected air-loop supply fan between constant-volume and variable-volume classes in a reviewed model copy. Use the performance editor for same-class efficiency or pressure changes.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled
@@ -73,3 +73,7 @@ pressure and efficiency.
 Same-class performance edits use `openstudio-supply-fan-performance-editor`.
 Return, relief, exhaust, embedded and other fan classes need separate coverage;
 diagnose covered failures without generating an ad hoc bypass script.
+
+## Energy code values
+
+Applies only when the user asks for code-compliant or code-minimum values or names a standard (for example "per 90.1-2019"); otherwise keep the behavior above. Load `query-energy-standards` to check variable-speed fan control requirements and part-load fan power thresholds (`system_requirements_fan_control`) when the user justifies the CV to VAV class change by a code requirement. The replacement settings still come from the user. Confirm `standard`, `template`, `climate_zone` and `path` with the user instead of assuming them, and record the source of each value used. If the `building_energy_standards` tools are unavailable or return no matching row, say so and ask the user for the value; never invent a code value.
