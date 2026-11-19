@@ -10,7 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from evals.checks import ToolCall, split_mcp_tool_name
 
-PLUGIN_AGENT = "openstudio-ai:openstudio-modeler"
+PLUGIN_AGENT = "openstudio-si:openstudio-modeler"
 
 
 @dataclass
@@ -80,7 +80,7 @@ def extract_tool_calls(
     """Ordered tool calls from ``tool_use`` blocks, tagged by provider.
 
     ``providers`` maps an MCP server name to a provider label (``harness`` for
-    openstudio-ai); servers not in the map keep their own name as provider.
+    openstudio-si); servers not in the map keep their own name as provider.
     Built-ins such as ``Skill`` or ``ToolSearch`` get provider ``agent``.
     """
     calls: list[ToolCall] = []

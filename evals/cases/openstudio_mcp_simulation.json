@@ -1,7 +1,7 @@
 [
   {
     "case_id": "openstudio_mcp_simulation_001",
-    "description": "With openstudio-ai and openstudio-mcp both connected, an annual simulation must run through openstudio-mcp's run_simulation, not the openstudio-ai sim_* tools.",
+    "description": "With openstudio-si and openstudio-mcp both connected, an annual simulation must run through openstudio-mcp's run_simulation, not the openstudio-si sim_* tools.",
     "prompt": "Run an annual EnergyPlus simulation of the OpenStudio model at {input_dir}/sample.osm using the weather file {input_dir}/USA_FL_Tampa.Intl.AP.722110_TMY3.epw, then report the site EUI.",
     "inputs": [
       "sample.osm",

@@ -10,7 +10,7 @@ from automa_ai.config.agent_spec import (
     YamlAgentSpec,
     load_agent_factory_from_yaml,
 )
-from openstudio_ai_mcp.server import serve
+from openstudio_si_mcp.server import serve
 
 base_dir = Path(__file__).resolve().parent
 repo_root = base_dir.parent
@@ -19,8 +19,8 @@ load_dotenv(dotenv_path=env_path)
 # Keep demo-only learning records in the ignored MCP workspace instead of the
 # host user-data directory, which may be unavailable to the UI child process.
 os.environ.setdefault(
-    "OPENSTUDIO_AI_DATA_DIR",
-    str(repo_root / ".openstudio_ai_mcp_workspace" / "user_data"),
+    "OPENSTUDIO_SI_DATA_DIR",
+    str(repo_root / ".openstudio_si_mcp_workspace" / "user_data"),
 )
 
 CHAT_BOT_MODEL_NAME = os.getenv("CHAT_BOT_MODEL_NAME", "llama3.1:8b")
@@ -81,9 +81,9 @@ def apply_skill_frontmatter_names(spec: YamlAgentSpec) -> None:
     )
 
 
-def build_openstudio_ai_mcp_config() -> MCPServerConfig:
+def build_openstudio_si_mcp_config() -> MCPServerConfig:
     return MCPServerConfig(
-        name="openstudio_ai_mcp",
+        name="openstudio_si_mcp",
         host=OPENSTUDIO_MCP_HOST,
         port=OPENSTUDIO_MCP_PORT,
         serve=serve,
@@ -105,7 +105,7 @@ def load_openstudio_agent_spec(
     apply_skill_frontmatter_names(spec)
 
     if mcp_config is not None and spec.mcp is not None:
-        server = spec.mcp.servers["openstudio_ai_mcp"]
+        server = spec.mcp.servers["openstudio_si_mcp"]
         server.host = mcp_config.host
         server.port = mcp_config.port
         server.transport = mcp_config.transport
@@ -121,5 +121,5 @@ def build_openstudio_agent():
     The MCP endpoint is managed by the UI runtime before this factory is used;
     no A2A agent server or agent card is involved.
     """
-    spec = load_openstudio_agent_spec(build_openstudio_ai_mcp_config())
+    spec = load_openstudio_agent_spec(build_openstudio_si_mcp_config())
     return load_agent_factory_from_yaml(spec).get_agent()

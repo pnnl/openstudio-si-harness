@@ -1,4 +1,4 @@
-"""Interop eval: the exported openstudio-ai plugin vs. any MCP server, in real Claude Code.
+"""Interop eval: the exported openstudio-si plugin vs. any MCP server, in real Claude Code.
 
     uv run python -m evals.interop \
         --sut-config sut.json [--model <model-id>] [--arms ...] [--cases ID ...] \
@@ -12,7 +12,7 @@ string of the entry is replaced with a fresh per-session directory; test inputs
 are staged in ``{sandbox}/inputs`` and cases refer to them as ``{input_dir}``.
 The entry's key is the server name, so tools show up as ``mcp__<name>__<tool>``.
 
-Arms: ``harness-only`` (openstudio-ai alone), ``sut-only`` (server under test
+Arms: ``harness-only`` (openstudio-si alone), ``sut-only`` (server under test
 alone, still with the plugin's agent and skills) and ``both`` (routing). Routing
 checks (required/forbidden tools) apply to ``both`` only.
 """
@@ -55,7 +55,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 BUNDLED_CASES_DIR = Path(__file__).resolve().parent / "cases"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 OUTPUT_ROOT = REPO_ROOT / "outputs" / "evals"
-PLUGIN_NAME = "openstudio-ai"
+PLUGIN_NAME = "openstudio-si"
 ARMS = ("harness-only", "sut-only", "both")
 
 
@@ -137,7 +137,7 @@ def isolate_reference(entry: dict[str, Any], sandbox: Path) -> dict[str, Any]:
     args = entry.get("args", [])
     if "--workspace-root" in args:
         args[args.index("--workspace-root") + 1] = str(sandbox / "reference_workspace")
-    entry.setdefault("env", {})["OPENSTUDIO_AI_DATA_DIR"] = str(sandbox / "reference_data")
+    entry.setdefault("env", {})["OPENSTUDIO_SI_DATA_DIR"] = str(sandbox / "reference_data")
     return entry
 
 
@@ -201,7 +201,7 @@ def score_run(
     files: list[str] = (),
     output_model: Path | None = None,
 ) -> dict[str, Any]:
-    # Only the openstudio-ai server gets a label; the server under test keeps its own
+    # Only the openstudio-si server gets a label; the server under test keeps its own
     # name (its key in --sut-config), so cases name it directly, e.g. "openstudio-mcp".
     providers = {ref_name: "harness"}
     calls = extract_tool_calls(run.events, providers=providers)
@@ -266,14 +266,14 @@ def _sut_root(entry: dict[str, Any]) -> Path | None:
 
 
 def build_provenance(args: argparse.Namespace, sut_name: str, sut_entry: dict[str, Any], cases: list[dict[str, Any]]) -> dict[str, Any]:
-    from openstudio_ai_mcp.compatibility import package_version
+    from openstudio_si_mcp.compatibility import package_version
 
     claude = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.strip()
     root = _sut_root(sut_entry)
     cases_blob = json.dumps(cases, sort_keys=True).encode()
     return {
-        "openstudio_ai_version": package_version(),
-        "openstudio_ai_git_sha": _git_sha(REPO_ROOT),
+        "openstudio_si_version": package_version(),
+        "openstudio_si_git_sha": _git_sha(REPO_ROOT),
         "sut_server": sut_name,
         "sut_root": str(root) if root else None,
         "sut_git_sha": _git_sha(root) if root else None,

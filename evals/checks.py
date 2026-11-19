@@ -72,7 +72,7 @@ def check_forbidden(calls: list[ToolCall], patterns: Iterable[str]) -> list[Chec
 
 def loaded_skills(calls: list[ToolCall]) -> list[str]:
     """Skill names loaded through the host ``Skill`` tool, plugin prefix dropped
-    (``openstudio-ai:delegated-nlr-modeling`` -> ``delegated-nlr-modeling``)."""
+    (``openstudio-si:delegated-nlr-modeling`` -> ``delegated-nlr-modeling``)."""
     names = []
     for c in calls:
         if c.name == "Skill" and c.provider == "agent" and isinstance(c.arguments, Mapping):

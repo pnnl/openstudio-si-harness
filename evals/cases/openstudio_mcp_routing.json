@@ -1,7 +1,7 @@
 [
   {
     "case_id": "openstudio_mcp_inspect_001",
-    "description": "Read-only model inspection. Both servers can load and summarize a model; with both connected the work must go through openstudio-mcp, not the openstudio-ai model_*/sim_*/results_* tools. Routing-only: a read-only task saves no model, so there is no outcome to inspect.",
+    "description": "Read-only model inspection. Both servers can load and summarize a model; with both connected the work must go through openstudio-mcp, not the openstudio-si model_*/sim_*/results_* tools. Routing-only: a read-only task saves no model, so there is no outcome to inspect.",
     "prompt": "Load the OpenStudio model at {input_dir}/sample.osm and summarize what is in it: how many thermal zones, air loops and plant loops. Do not run a simulation and do not modify the model.",
     "inputs": ["sample.osm"],
     "required_tools": [
@@ -27,7 +27,7 @@
   },
   {
     "case_id": "openstudio_mcp_location_001",
-    "description": "Setting weather and design days. openstudio-mcp does it in one step with change_building_location; openstudio-ai splits it into model_set_weather and model_set_design_days. The saved model must carry the Tampa International weather file and design days (the input has Tampa-MacDill), and the work must go through openstudio-mcp.",
+    "description": "Setting weather and design days. openstudio-mcp does it in one step with change_building_location; openstudio-si splits it into model_set_weather and model_set_design_days. The saved model must carry the Tampa International weather file and design days (the input has Tampa-MacDill), and the work must go through openstudio-mcp.",
     "prompt": "Load {input_dir}/sample.osm, set its location to the Tampa weather file {input_dir}/USA_FL_Tampa.Intl.AP.722110_TMY3.epw (including the matching design days), and save the result as sample_tampa.osm. Do not run a simulation.",
     "inputs": [
       "sample.osm",

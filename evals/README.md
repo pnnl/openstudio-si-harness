@@ -1,6 +1,6 @@
-# Interop evals: openstudio-ai plugin + your MCP server, in real Claude Code
+# Interop evals: openstudio-si plugin + your MCP server, in real Claude Code
 
-These evals run the exported **openstudio-ai Claude plugin** (agent, skills and
+These evals run the exported **openstudio-si Claude plugin** (agent, skills and
 MCP server) in `claude -p` next to **a second OpenStudio MCP server that you are
 developing**, and score what the agent does. The first target is NLR
 `openstudio-mcp`, but the runner only knows a plain MCP config entry, so any
@@ -10,7 +10,7 @@ Arms, per case:
 
 | Arm | Servers connected | What it checks |
 | --- | --- | --- |
-| `harness-only` | openstudio-ai | baseline: the case is solvable without your server |
+| `harness-only` | openstudio-si | baseline: the case is solvable without your server |
 | `sut-only` | your server (plugin agent and skills still loaded) | your server works under our agent |
 | `both` | both | routing: the agent sends the work to your server (`required_tools` / `forbidden_tools`) |
 
@@ -20,7 +20,7 @@ tolerance) is checked on every arm.
 
 ## Quick start (openstudio-mcp developer)
 
-Goal: be able to run this from the root of `openstudio-ai-harness`:
+Goal: be able to run this from the root of `openstudio-si-harness`:
 
 ```bash
 uv run python -m evals.interop \
@@ -48,7 +48,7 @@ set), `uv`, and OpenStudio on `PATH`.
    the environment that runs the evaluations.
 
    ```bash
-   git clone git@github.com:pnnl/openstudio-ai-harness.git && cd openstudio-ai-harness
+   git clone git@github.com:pnnl/openstudio-si-harness.git && cd openstudio-si-harness
    git checkout <tag>
    uv sync
    ```
@@ -63,7 +63,7 @@ set), `uv`, and OpenStudio on `PATH`.
 4. **Configure the server entry.** This file tells the harness how to start
    `openstudio-mcp`. Copy `evals/sut/openstudio-mcp.example.json` to
    `evals/sut/openstudio-mcp.json` and replace the two placeholders:
-   - `/ABS/PATH/TO/openstudio-ai-harness/...` becomes where you cloned this repo in step 2.
+   - `/ABS/PATH/TO/openstudio-si-harness/...` becomes where you cloned this repo in step 2.
    - `/ABS/PATH/TO/openstudio-mcp` becomes your `openstudio-mcp` checkout from step 1.
 
    Leave `{sandbox}` alone and keep the key `openstudio-mcp` (details below).
@@ -93,7 +93,7 @@ file with exactly one entry. With the paths filled in it looks like:
   "mcpServers": {
     "openstudio-mcp": {
       "command": "bash",
-      "args": ["/abs/path/openstudio-ai-harness/scripts/start_openstudio_mcp.sh"],
+      "args": ["/abs/path/openstudio-si-harness/scripts/start_openstudio_mcp.sh"],
       "env": {
         "OPENSTUDIO_MCP_ROOT": "/abs/path/openstudio-mcp",
         "OPENSTUDIO_MCP_SANDBOX": "{sandbox}"
@@ -123,7 +123,7 @@ file with exactly one entry. With the paths filled in it looks like:
 | `--cases ID ...` | only these case ids |
 | `--cases-dir DIR` | extra `*.json` case files, for example from your own repo. A duplicate `case_id` is an error |
 | `--repeat N` | repeat each session N times (agent routing varies between runs) |
-| `--runtime-mode` | how the plugin launches the openstudio-ai server: `local` (default, this checkout), `installed`, `marketplace` (need `openstudio-ai-mcp` on PATH) |
+| `--runtime-mode` | how the plugin launches the openstudio-si server: `local` (default, this checkout), `installed`, `marketplace` (need `openstudio-si-mcp` on PATH) |
 | `--timeout S` | seconds per Claude session (default 900) |
 | `--deepeval` | add DeepEval ToolCorrectness on the `both` arm (`uv sync --extra eval`) |
 | `--model ID` | model id for every session (default `$ANTHROPIC_MODEL`) |
@@ -135,7 +135,7 @@ The exit code is 0 only if every session passes.
 
 `outputs/evals/<run-name>/` (gitignored):
 
-- `provenance.json`: openstudio-ai version and git SHA, your server's git SHA (taken
+- `provenance.json`: openstudio-si version and git SHA, your server's git SHA (taken
   from the first existing directory in the entry's `env`), `claude --version`, model,
   runtime mode, arms, and a hash of the cases that ran
 - `summary.json`: every session's checks and tool calls
@@ -155,7 +155,7 @@ The exit code is 0 only if every session passes.
   (the Claude stream-json)
 
 When `both` fails, read the `tools:` line printed by the runner or `timeline.json`.
-Typical failures are the agent using the openstudio-ai `sim_*` tools, or never loading
+Typical failures are the agent using the openstudio-si `sim_*` tools, or never loading
 the `delegated-nlr-modeling` skill.
 
 ## Cases
@@ -180,7 +180,7 @@ Cases are JSON lists in `evals/cases/` (or `--cases-dir`):
 ```
 
 - `inputs` are file names from `tests/fixtures/`, copied into `{input_dir}`.
-- A tool's `provider` is `harness` for openstudio-ai, or the server name (the key
+- A tool's `provider` is `harness` for openstudio-si, or the server name (the key
   in your `--sut-config`, e.g. `openstudio-mcp`) for the server under test.
 - `required_tools`, `forbidden_tools` (globs) and `expected_tools_ordered` apply to
   the `both` arm only. `arms` is optional (default all three).
@@ -224,12 +224,12 @@ Cases are JSON lists in `evals/cases/` (or `--cases-dir`):
   ships `{"agent": "openstudio-modeler"}` so that the modeler agent (which holds
   the routing policy) runs as the main thread. In headless mode this does not
   happen, even for a normally installed plugin: without `--agent` the policy is
-  absent. The runner passes `--agent openstudio-ai:openstudio-modeler` explicitly,
+  absent. The runner passes `--agent openstudio-si:openstudio-modeler` explicitly,
   so these evals test the policy itself, **not** whether users get it
   automatically. Interactive behavior is unverified. This is a possible product
   gap, tracked outside these evals.
 - Tool names depend on how the plugin is loaded: `--plugin-dir` gives
-  `mcp__openstudio_ai__*`, a real install gives
-  `mcp__plugin_openstudio-ai_openstudio_ai__*`. The scorer accepts both.
+  `mcp__openstudio_si__*`, a real install gives
+  `mcp__plugin_openstudio-si_openstudio_si__*`. The scorer accepts both.
 - LLM routing is not deterministic. Use `--repeat` to measure a pass rate.
 - Claude Code only for now; a Codex driver is planned.

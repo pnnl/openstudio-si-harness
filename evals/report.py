@@ -94,7 +94,7 @@ def render_report(run_dir: Path) -> str:
     if prov:
         lines += ["## Run", ""]
         lines += _table(["Item", "Value"], [
-            ["openstudio-ai", f"{prov.get('openstudio_ai_version')} @ {str(prov.get('openstudio_ai_git_sha'))[:10]}"],
+            ["openstudio-si", f"{prov.get('openstudio_si_version')} @ {str(prov.get('openstudio_si_git_sha'))[:10]}"],
             ["Server under test", f"{prov.get('sut_server')} @ {str(prov.get('sut_git_sha'))[:10]}"],
             ["Claude Code", prov.get("claude_version")],
             ["Model", f"{prov.get('model')} (from {prov.get('model_source')})"],
@@ -145,7 +145,7 @@ def render_report(run_dir: Path) -> str:
         lines.append("")
 
     lines += ["## Routing: tool sequences", "",
-              "`harness` is openstudio-ai; `agent` is a Claude Code built-in; any other name is that MCP server. "
+              "`harness` is openstudio-si; `agent` is a Claude Code built-in; any other name is that MCP server. "
               "Repeated calls are collapsed (`x3`).", ""]
     for key in _ordered(groups):
         case, arm = key

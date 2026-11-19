@@ -167,7 +167,7 @@ def test_report_renders_results_failures_and_collapsed_sequences(tmp_path) -> No
 def _skill(name: str):
     from evals.checks import ToolCall
 
-    return ToolCall("Skill", "agent", {"skill": f"openstudio-ai:{name}"})
+    return ToolCall("Skill", "agent", {"skill": f"openstudio-si:{name}"})
 
 
 def test_skill_checks_match_loaded_skill_names() -> None:

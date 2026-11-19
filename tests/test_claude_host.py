@@ -11,7 +11,7 @@ from evals.claude_host import (
 )
 
 STREAM = Path(__file__).parent / "data" / "claude_both_stream.ndjson"
-PROVIDERS = {"openstudio_ai": "harness"}
+PROVIDERS = {"openstudio_si": "harness"}
 
 
 def _events() -> list[dict]:
@@ -47,7 +47,7 @@ def test_timeline_pairs_results_and_flags_errors() -> None:
 
 def test_init_reports_connected_servers() -> None:
     run = ClaudeRun(_events(), "", 0)
-    assert connected_servers(run) == {"openstudio_ai": "connected", "openstudio-mcp": "connected"}
+    assert connected_servers(run) == {"openstudio_si": "connected", "openstudio-mcp": "connected"}
     assert not run.is_error
     assert run.final_text
 
@@ -65,7 +65,7 @@ def test_scoring_reuses_checks_on_extracted_calls() -> None:
 
 def test_plugin_installed_server_names_map_to_the_same_provider() -> None:
     events = [{"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "id": "1", "name": "mcp__plugin_openstudio-ai_openstudio_ai__model_load", "input": {}},
+        {"type": "tool_use", "id": "1", "name": "mcp__plugin_openstudio-si_openstudio_si__model_load", "input": {}},
     ]}}]
     (call,) = extract_tool_calls(events, providers=PROVIDERS)
     assert (call.name, call.provider) == ("model_load", "harness")
