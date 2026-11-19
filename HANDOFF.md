@@ -34,15 +34,25 @@ and approval model.
   are coordinated; hosts
   must refresh the runtime and exported plugin together. Durable engineering-
   session, finding and checkpoint surfaces remain available.
+- This branch keeps exact MCP plugin interface contract `6.0`; it changes how
+  marketplace plugins launch the runtime, not the MCP tool surface. SDK skills
+  keep main's doctor-verified native OpenStudio CLI execution path
+  (`scripts/doctor.py`, exact OpenStudio `3.11.0`). An earlier `sdk_python` field
+  on `runtime_openstudio_status` was removed in the merge.
 - The diagnostic MVP (`model_inspect`, `sim_diagnose`, and
   `results_plausibility`) and its curated fixtures remain future development;
-  this metadata bump does not implement those MCP tools.
+  they will need a further contract bump when they ship.
 - Terminal and plant equipment work through phase 13 is reviewed. Supported
   operations and remaining limits are in the [release review summary](docs/reviews/SUMMARY.md).
 - PR #47 companion weather fixes are in `6e8fd8f`. The focused SDK suites
   passed 378 checks, with 53 native cases deselected.
-- Current checkout branch: `prepare_410_release`; release metadata is
-  `0.4.1`, with OpenStudio SDK/CLI still pinned to `3.11.0`.
+- Marketplace exports launch the runtime through a pinned `uv` launcher
+  (`adapters/mcp_launcher.py`). After the rename the package is `openstudio-si`
+  `0.4.2`, which must be published to PyPI before exporting the marketplace; the
+  publish workflow refuses an export whose pinned version is not on PyPI or
+  serves a different contract.
+- Current branch: `uvx-marketplace-runtime` (main, including the OpenStudio SI
+  rename, merged in); OpenStudio SDK/CLI still pinned to `3.11.0`.
 - The current foundation is a Python 3.10+ package with an MCP 2.x runtime,
   Codex and Claude Code plugin exports, trusted skills/knowledge, local
   SQLite-backed workflow state, model lifecycle support, asynchronous

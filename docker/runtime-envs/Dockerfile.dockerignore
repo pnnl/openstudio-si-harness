@@ -1,0 +1,22 @@
+# Scoped to docker/runtime-envs/Dockerfile (BuildKit reads <Dockerfile>.dockerignore),
+# so it does not change the devcontainer build context.
+.git
+.env
+**/.env
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.openstudio_si_mcp_workspace
+.openstudio_mcp_workspace
+.openstudio_si_blackboards
+.openstudio_ai_mcp_workspace
+.openstudio_ai_blackboards
+dist
+build
+logs
+outputs
+openstudio-si-claude-plugin
+openstudio-si-codex-plugin
+standalone/.venv

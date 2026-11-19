@@ -1,14 +1,28 @@
 """Guard the publishing/full-CI boundary against accidental loss of coverage."""
 
 import ast
+import importlib.util
 from pathlib import Path
 
 import pytest
 import yaml
 
-from conftest import SLOW_MODULES, SLOW_TESTS, is_slow_test
-
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_root_conftest():
+    spec = importlib.util.spec_from_file_location(
+        "_root_tests_conftest", ROOT / "tests" / "conftest.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_root_conftest = _load_root_conftest()
+SLOW_MODULES = _root_conftest.SLOW_MODULES
+SLOW_TESTS = _root_conftest.SLOW_TESTS
+is_slow_test = _root_conftest.is_slow_test
 
 
 def test_slow_policy_references_existing_modules_and_test_functions():
