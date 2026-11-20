@@ -8,99 +8,18 @@ plugin/read loader and check the discovered skills and server names.
 import argparse
 import json
 from pathlib import Path
-import queue
 import shutil
 
 import yaml
 import subprocess
 import tempfile
-import threading
 
 from openstudio_si_harness.export import export_plugin
 from openstudio_si_harness.compatibility import satisfies
-
-
-def validate_codex(marketplace, plugins):
-    process = subprocess.Popen(
-        [
-            "codex",
-            "app-server",
-            "--stdio",
-            "-c",
-            f"sqlite_home={json.dumps(str(marketplace / 'state'))}",
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-        cwd=marketplace,
-    )
-    messages = queue.Queue()
-    errors = []
-
-    def read_errors():
-        for line in process.stderr:
-            errors.append(line)
-
-    threading.Thread(target=read_errors, daemon=True).start()
-
-    def read():
-        for line in process.stdout:
-            try:
-                messages.put(json.loads(line))
-            except ValueError:
-                pass
-        messages.put({"process_exited": True})
-
-    threading.Thread(target=read, daemon=True).start()
-
-    def rpc(identity, method, params):
-        process.stdin.write(
-            json.dumps(dict(id=identity, method=method, params=params)) + "\n"
-        )
-        process.stdin.flush()
-        while True:
-            response = messages.get(timeout=30)
-            if response.get("process_exited"):
-                raise RuntimeError("Codex loader exited: " + "".join(errors)[-3000:])
-            if response.get("id") == identity:
-                if "error" in response:
-                    raise RuntimeError(response["error"])
-                return response["result"]
-
-    try:
-        rpc(
-            1,
-            "initialize",
-            {
-                "clientInfo": {"name": "si-plugin-validation", "version": "0.1.0"},
-                "capabilities": {"experimentalApi": True},
-            },
-        )
-        process.stdin.write('{"method":"initialized","params":{}}\n')
-        process.stdin.flush()
-        for index, (identity, expected) in enumerate(plugins.items(), 2):
-            result = rpc(
-                index,
-                "plugin/read",
-                {
-                    "marketplacePath": str(
-                        marketplace / ".agents/plugins/marketplace.json"
-                    ),
-                    "pluginName": identity,
-                },
-            )["plugin"]
-            assert len(result["skills"]) == expected["skill_count"], result
-            assert len(result["mcpServers"]) == expected["mcp_server_count"], result
-            print(f"Codex loaded {identity}: {expected}", flush=True)
-    finally:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+from openstudio_si_harness.generator import init_project
+from openstudio_si_harness.manifest import load_plugin
+from openstudio_si_harness.project_tools import validate_codex
+import sys
 
 
 def dependency_fixtures(example: Path, destination: Path) -> list[Path]:
@@ -113,12 +32,12 @@ def dependency_fixtures(example: Path, destination: Path) -> list[Path]:
         data = yaml.safe_load(path.read_text())
         data["id"] = f"fixture-{variant}"
         data["name"] = f"Fixture {variant}"
-        skill = source / "skills/example-task"
+        skill = next((source / "skills").iterdir())
         skill.rename(source / "skills" / f"{variant}-task")
         skill_file = source / "skills" / f"{variant}-task/SKILL.md"
         skill_file.write_text(
             skill_file.read_text().replace(
-                "name: example-task", f"name: {variant}-task"
+                f"name: {skill.name}", f"name: {variant}-task"
             )
         )
         if variant == "service-provider":
@@ -165,7 +84,10 @@ def dependency_fixtures(example: Path, destination: Path) -> list[Path]:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "example", type=Path, help="The minimal plugin source directory."
+        "example",
+        nargs="?",
+        type=Path,
+        help="Optional source; otherwise generate a starter with and without an MCP example.",
     )
     args = parser.parse_args()
     versions = [
@@ -219,10 +141,31 @@ def main():
         root = Path(stage)
         entries = []
         plugins = {}
-        example = args.example.resolve()
-        sources = [example, *dependency_fixtures(example, root / "fixtures")]
+        generated = []
+        if args.example is None:
+            for with_mcp in (False, True):
+                project = root / (
+                    "generated-with-mcp" if with_mcp else "generated-basic"
+                )
+                identity = "example-mcp-plugin" if with_mcp else "example-plugin"
+                init_project(
+                    project,
+                    identity=identity,
+                    with_mcp=with_mcp,
+                    license_identifier="BSD-3-Clause",
+                )
+                generated.append(project)
+            example = generated[0] / "plugin"
+            sources = [project / "plugin" for project in generated]
+        else:
+            example = args.example.resolve()
+            sources = [example]
+        sources.extend(dependency_fixtures(example, root / "fixtures"))
+        reports = {}
         for source in sources:
-            report = export_plugin(source, root / "exports" / source.name)
+            source_id = load_plugin(source)["manifest"]["id"]
+            report = export_plugin(source, root / "exports" / source_id)
+            reports[source.resolve()] = report
             identity = report["id"]
             plugins[identity] = report["inventory"]
             subprocess.run(
@@ -235,7 +178,7 @@ def main():
                     "name": identity,
                     "source": {
                         "source": "local",
-                        "path": f"./exports/{source.name}/codex/{identity}",
+                        "path": f"./exports/{identity}/codex/{identity}",
                     },
                     "policy": {
                         "installation": "AVAILABLE",
@@ -249,6 +192,22 @@ def main():
             json.dumps({"name": "si-wheel-validation", "plugins": entries})
         )
         validate_codex(root, plugins)
+        for project in generated:
+            report_file = root / (project.name + "-export.json")
+            report_file.write_text(json.dumps(reports[(project / "plugin").resolve()]))
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-m",
+                    "openstudio_si_harness.cli",
+                    "plugin",
+                    "check-hosts",
+                    str(report_file),
+                ],
+                check=True,
+                timeout=90,
+            )
 
 
 if __name__ == "__main__":

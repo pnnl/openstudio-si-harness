@@ -1,0 +1,12 @@
+# Managed by openstudio-si plugin configure-ci.
+name: Validate plugin
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    uses: pnnl/openstudio-si-harness/.github/workflows/plugin-conformance.yml@@@WORKFLOW_REF@@
+    with:
+      tooling-version: '@@TOOLING_VERSION@@'

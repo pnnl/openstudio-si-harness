@@ -31,8 +31,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+plugin-dev = [
+    "jsonschema>=4.23,<5",
+    "packaging>=24",
+]
 dev = [
     "build>=1.2.0",
+    "jsonschema>=4.23,<5",
+    "packaging>=24",
     "black>=25.9.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
@@ -49,7 +55,7 @@ Repository = "https://github.com/pnnl/openstudio-si-harness"
 Documentation = "https://github.com/pnnl/openstudio-si-harness"
 
 [project.scripts]
-openstudio-si = "cli:main"
+openstudio-si = "openstudio_si.cli:main"
 openstudio-si-mcp = "openstudio_si_mcp.server:main"
 openstudio-si-claude-export = "adapters.claude_code_adapter:main"
 openstudio-si-codex-export = "adapters.codex_adapter:main"
@@ -72,18 +78,22 @@ packages = [
     "blackboard",
     "harness",
     "learning",
+    "openstudio_si",
     "openstudio_si_mcp",
     "scripts",
     "sdk_index",
+    "packages/plugin-tools/src/openstudio_si_harness",
 ]
 only-include = [
     "adapters",
     "blackboard",
     "harness",
     "learning",
+    "openstudio_si",
     "openstudio_si_mcp",
     "scripts",
     "sdk_index",
+    "packages/plugin-tools/src/openstudio_si_harness",
     "cli.py",
     "skills",
     "knowledge",
@@ -113,12 +123,17 @@ exclude = [
     "measures/candidates",
 ]
 
+[tool.hatch.build.targets.wheel.sources]
+"packages/plugin-tools/src" = ""
+
 [tool.hatch.build.targets.sdist]
 include = [
+    "packages/plugin-tools/**",
     "adapters/**",
     "blackboard/**",
     "harness/**",
     "learning/**",
+    "openstudio_si/**",
     "openstudio_si_mcp/**",
     "scripts/**",
     "sdk_index/**",

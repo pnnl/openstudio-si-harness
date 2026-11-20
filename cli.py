@@ -1303,6 +1303,9 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="openstudio-si", description="OpenStudio SI runtime CLI"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser(
+        "plugin", help="Develop plugins (install openstudio-si[plugin-dev])."
+    )
 
     doctor = subparsers.add_parser("doctor", help="Check runtime readiness.")
     doctor.add_argument(
@@ -1492,8 +1495,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the `openstudio-si` console script."""
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] == "plugin":
+        from openstudio_si.cli import main as plugin_main
+
+        return plugin_main(arguments)
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(arguments)
     return int(args.func(args))
 
 

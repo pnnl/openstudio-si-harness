@@ -465,13 +465,30 @@ the workflow repeats inventory/preflight with all exact checks intact. See the
 
 ## Plugin developer tooling
 
-Step 1 of the external-plugin framework is implemented in
-[packages/plugin-tools](packages/plugin-tools/README.md). The lightweight
-openstudio-si-harness distribution validates plugin identity and dependencies,
-discovers skills and MCP definitions, and exports Codex and Claude Code packages.
+The public `openstudio-si` command routes through `openstudio_si/cli.py`.
+This shared entry point loads developer tools or the runtime CLI as needed;
+MCP server code stays in `openstudio_si_mcp`.
+
+For a plain-language overview of the proposed multi-lab framework, commands,
+testing, and contribution journey, see the
+[team review draft](docs/FRAMEWORK_TEAM_REVIEW.md).
+
+Plugin validation/export and the step-B project generator are implemented in
+[packages/plugin-tools](packages/plugin-tools/README.md). The optional
+`openstudio-si[plugin-dev]` installation validates plugin identity and dependencies,
+generates local plugin development projects with optional MCP examples, discovers capabilities, and
+exports Codex and Claude Code packages.
 It supports local plugin sources before a GitHub repository exists, filters
 package resources, and verifies exported file hashes. The manifest remains
 draft schema 0.1. The released core/HVAC IDs remain owned by their existing
 exporters. Current MCP launchers support macOS and Linux installed commands.
-See the [minimal source example](packages/plugin-tools/examples/minimal/README.md)
-and the [implementation plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
+Start with `openstudio-si plugin init ./my-plugin --id my-plugin --license MIT`.
+Install with `pip install "openstudio-si[plugin-dev]"` after the release containing
+these tools is published; the SDK and runtime are included. Generation/export
+do not import the SDK or require a native OpenStudio CLI. Budget roughly 370 MB
+(platform dependent); Windows/Python 3.14 has no wheel for the pinned SDK. CI uses the packaged
+generator. New projects require an explicit license; configure-ci activates thin
+pinned workflows using a published openstudio-si version. Lab publication targets
+the shared marketplace through a scoped PR, with no lab PyPI release. See the
+[tooling commands](packages/plugin-tools/README.md) and
+[implementation plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).

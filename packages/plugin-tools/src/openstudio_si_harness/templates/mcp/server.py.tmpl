@@ -1,0 +1,49 @@
+"""Minimal stdio MCP example exposing read-only plugin identity."""
+
+from importlib.metadata import PackageNotFoundError, version
+import json
+import sys
+
+
+def reply(request):
+    method = request.get("method")
+    if "id" not in request:
+        return None
+    identity = request["id"]
+    if method == "initialize":
+        try:
+            release = version("@@PLUGIN_ID@@")
+        except PackageNotFoundError:
+            release = "development"
+        result = {
+            "protocolVersion": request.get("params", {}).get("protocolVersion", "2024-11-05"),
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "@@PLUGIN_ID@@", "version": release},
+        }
+    elif method == "ping":
+        result = {}
+    elif method == "tools/list":
+        result = {"tools": [{"name": "plugin_info", "description": "Describe this generated example plugin.",
+                             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}}]}
+    elif method == "tools/call" and request.get("params", {}).get("name") == "plugin_info":
+        result = {"content": [{"type": "text", "text": json.dumps({"id": "@@PLUGIN_ID@@", "scope": "layout demonstration"})}], "isError": False}
+    else:
+        return {"jsonrpc": "2.0", "id": identity, "error": {"code": -32601, "message": "Unknown example method or tool"}}
+    return {"jsonrpc": "2.0", "id": identity, "result": result}
+
+
+def main():
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+            if not isinstance(request, dict):
+                raise ValueError("Expected a request object")
+            response = reply(request)
+        except (ValueError, TypeError, AttributeError):
+            response = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Invalid example request"}}
+        if response is not None:
+            print(json.dumps(response), flush=True)
+
+
+if __name__ == "__main__":
+    main()

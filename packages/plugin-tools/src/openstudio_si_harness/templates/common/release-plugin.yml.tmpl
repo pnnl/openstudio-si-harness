@@ -1,0 +1,11 @@
+# Managed by openstudio-si plugin configure-ci.
+name: Configure marketplace candidate workflow
+on: workflow_dispatch
+permissions: {}
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo 'Release automation is inactive. Configure a PNNL workflow SHA and published openstudio-si version with plugin configure-ci.'
+          exit 1

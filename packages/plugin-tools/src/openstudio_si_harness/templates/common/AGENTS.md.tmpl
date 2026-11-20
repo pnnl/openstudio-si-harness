@@ -1,0 +1,60 @@
+# Plugin development
+
+Work on `plugin/skills/@@PLUGIN_ID@@/SKILL.md` and its resources. Identity,
+maintainers, capabilities and dependencies belong in `plugin/openstudio-si-plugin.yaml`.
+The manifest version is the release version and the Python build reads it directly.
+The authoring API range is independent of that version and the core version.
+Add core as a dependency only for capabilities that use it. Skills and MCP
+servers are composable contents, not plugin types.
+
+Install developer tooling with `python -m pip install "openstudio-si[plugin-dev]"`.
+It includes the modeling runtime and SDK. Use a published release that includes
+plugin tools. This lab project publishes its plugin to the marketplace, not PyPI.
+
+```bash
+openstudio-si plugin check-project .
+openstudio-si plugin validate ./plugin
+openstudio-si plugin export ./plugin --output ./dist/plugin
+openstudio-si plugin check-hosts ./dist/export-report.json
+```
+
+Save the export command's JSON output to dist/export-report.json when using
+check-hosts. Before creating a release tag, run locally:
+
+```bash
+openstudio-si plugin check-project . --require-tracked
+```
+
+This local check detects present-but-untracked/ignored export inputs, including
+nested assets/dist and assets/build. A fresh CI checkout cannot see omitted
+ignored files; its same check is only a consistency check, not evidence that no
+files were lost before checkout. Review the local file set before tagging.
+Host manifests/descriptors/launchers are generated from tracked source inputs.
+
+CI initially has manual configuration stubs only. Configure or upgrade thin
+reusable-workflow calls with plugin configure-ci using an immutable PNNL workflow
+SHA and an exact published openstudio-si version. Shared logic belongs in the installed
+wheel. Do not copy its host loader or release-record code into this repository.
+
+Use deterministic domain checks for engineering operations. Declare dependencies
+for each capability. Metadata validation does not prove runtime readiness, and
+cached files do not establish host enablement. Cases and reviewed references
+live under plugin/evals. Agent/judge execution is developer-run work; the runner
+is a later milestone. Judge scores are advisory. Never add LLM calls to CI.
+
+Keep credentials out of source, arguments, logs and artifacts. MCP environment
+settings reference variables. Respect the explicitly chosen license and copyright
+holder; obtain the contributor organization's legal/IP approval before release.
+
+For release, bump the manifest version, review dependencies and publish a matching
+GitHub tag v<manifest-version>. The configured read-only build creates candidate
+archives. A separate upload-only job stages them on that source release for the
+planned central importer. The intended publication is a plugin-scoped PR to
+pnnl/openstudio-si-plugins. Automatic submission is step E and remains pending;
+archive upload alone does not mean the marketplace has published the plugin.
+
+The SDK is installed with `openstudio-si[plugin-dev]`, but generation and
+packaging do not import it or require a native OpenStudio CLI. Budget roughly
+370 MB for the environment; size varies with platform and dependencies. The
+pinned OpenStudio 3.11.0 package currently has no Windows Python 3.14 wheel;
+use a supported Python/platform combination (CI uses Linux/Python 3.13).

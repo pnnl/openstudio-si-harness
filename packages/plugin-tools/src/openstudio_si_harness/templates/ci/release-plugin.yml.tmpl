@@ -1,0 +1,21 @@
+# Managed by openstudio-si plugin configure-ci.
+name: Build marketplace candidate
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: pnnl/openstudio-si-harness/.github/workflows/plugin-conformance.yml@@@WORKFLOW_REF@@
+    with:
+      tooling-version: '@@TOOLING_VERSION@@'
+      package-release: true
+      release-tag: ${{ github.event.release.tag_name }}
+  upload:
+    needs: build
+    permissions:
+      contents: write
+    uses: pnnl/openstudio-si-harness/.github/workflows/plugin-candidate-upload.yml@@@WORKFLOW_REF@@
+    with:
+      release-tag: ${{ github.event.release.tag_name }}

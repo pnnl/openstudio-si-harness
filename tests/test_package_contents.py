@@ -50,10 +50,23 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     assert "skills/sdk_scripts/common/hvac_diagram.py" in wheel_names
     assert "skills/sdk_scripts/schemas/hvac_graph.schema.json" in wheel_names
     assert "prompts/openstudio_agent.md" in wheel_names
+    assert "openstudio_si/__init__.py" in wheel_names
+    assert "openstudio_si/cli.py" in wheel_names
+    assert "openstudio_si_mcp/command.py" not in wheel_names
+    assert "openstudio_si_harness/cli.py" in wheel_names
+    assert "openstudio_si_harness/schemas/plugin.schema.json" in wheel_names
+    assert "openstudio_si_harness/templates/common/README.md.tmpl" in wheel_names
+    assert "openstudio_si_harness/templates/ci/validate.yml.tmpl" in wheel_names
+    assert not any(name.startswith("packages/") for name in wheel_names)
+    assert not any("__pycache__" in name for name in wheel_names)
 
     sdist = next(tmp_path.glob("*.tar.gz"))
     with tarfile.open(sdist) as archive:
         sdist_names = [member.name.partition("/")[2] for member in archive.getmembers()]
+
+    assert "openstudio_si/cli.py" in sdist_names
+    assert "packages/plugin-tools/src/openstudio_si_harness/cli.py" in sdist_names
+    assert "packages/plugin-tools/tests/test_ci.py" in sdist_names
 
     terminal_sources = {
         "skills/openstudio_plant_equipment_replacer.md",

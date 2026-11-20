@@ -1597,10 +1597,16 @@ dependencies = [
 dev = [
     { name = "black" },
     { name = "build" },
+    { name = "jsonschema" },
+    { name = "packaging" },
     { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "twine" },
+]
+plugin-dev = [
+    { name = "jsonschema" },
+    { name = "packaging" },
 ]
 standards = [
     { name = "building-energy-standards-data", extra = ["mcp"] },
@@ -1612,8 +1618,12 @@ requires-dist = [
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "building-energy-standards-data", extras = ["mcp"], marker = "extra == 'standards'", specifier = ">=0.3.3" },
     { name = "jinja2", specifier = ">=3.1.0" },
+    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.23,<5" },
+    { name = "jsonschema", marker = "extra == 'plugin-dev'", specifier = ">=4.23,<5" },
     { name = "mcp", specifier = ">=2,<3" },
     { name = "openstudio", specifier = "==3.11.0" },
+    { name = "packaging", marker = "extra == 'dev'", specifier = ">=24" },
+    { name = "packaging", marker = "extra == 'plugin-dev'", specifier = ">=24" },
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "playwright", marker = "extra == 'dev'", specifier = ">=1.50.0" },
     { name = "pydantic", specifier = ">=2.12.3" },
@@ -1625,7 +1635,7 @@ requires-dist = [
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=5.0.0" },
 ]
-provides-extras = ["dev", "standards"]
+provides-extras = ["plugin-dev", "dev", "standards"]
 
 [[package]]
 name = "opentelemetry-api"

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Proposed OpenStudio SI plugin agent evaluation case v1",
+  "title": "Draft OpenStudio SI plugin agent evaluation case 0.1",
   "description": "Extends the case shape in PR #35 with a required judge rubric. Model credentials live in run configuration.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "0.1"
     },
     "case_id": {
       "type": "string",

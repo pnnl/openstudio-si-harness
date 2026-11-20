@@ -162,9 +162,12 @@ def test_version_ranges():
         semver("0.1.0-01")
 
 
-def test_minimal_example_validates_without_runtime():
-    root = Path(__file__).resolve().parents[1] / "examples/minimal"
-    plugin = load_plugin(root)
+def test_generated_minimal_example_validates_without_runtime(tmp_path):
+    from openstudio_si_harness.generator import init_project
+
+    root = tmp_path / "project"
+    init_project(root, identity="example-plugin", license_identifier="BSD-3-Clause")
+    plugin = load_plugin(root / "plugin")
     assert plugin["manifest"]["id"] == "example-plugin"
     assert plugin["manifest"]["dependencies"] == []
     assert plugin["inventory"] == {"skill_count": 1, "mcp_server_count": 0}
@@ -344,10 +347,18 @@ def test_installed_cli_outside_checkout(source, tmp_path):
     import openstudio_si_harness
 
     assert "site-packages" in str(Path(openstudio_si_harness.__file__))
-    assert importlib.metadata.version("openstudio-si-harness")
-    executable = Path(sys.executable).with_name("openstudio-si-harness")
+    assert openstudio_si_harness.__version__ == importlib.metadata.version(
+        "openstudio-si"
+    )
+    assert "plugin-dev" in importlib.metadata.metadata("openstudio-si").get_all(
+        "Provides-Extra", []
+    )
+    executable = Path(sys.executable).with_name("openstudio-si")
     result = subprocess.run(
-        [str(executable), "--help"], cwd=tmp_path, capture_output=True, text=True
+        [str(executable), "plugin", "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0 and "plugin" in result.stdout
     command = [sys.executable, "-I", "-m", "openstudio_si_harness.cli"]
@@ -536,8 +547,8 @@ def test_released_doctor_gate_rejects_untrusted_baselines(tmp_path, failure):
     wheel = tmp_path / "baseline.whl"
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr(
-            "openstudio_si-0.4.2.dist-info/METADATA",
-            "Name: openstudio-si\nVersion: 0.4.2\n",
+            "openstudio_si-0.4.1.dist-info/METADATA",
+            "Name: openstudio-si\nVersion: 0.4.1\n",
         )
     digest = (
         hashlib.sha256(wheel.read_bytes()).hexdigest()
@@ -564,5 +575,5 @@ def test_released_doctor_gate_rejects_untrusted_baselines(tmp_path, failure):
     )
     assert result.returncode != 0
     assert (
-        "0.4.3 wheel" if failure == "version" else "pinned SHA-256"
+        "0.4.2 wheel" if failure == "version" else "pinned SHA-256"
     ) in result.stderr
