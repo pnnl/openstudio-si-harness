@@ -67,8 +67,7 @@ an approved default for a lab; confirm the choice with its legal/IP office.
 The manifest version is also the Python build version. Hatch reads it using its
 [regex version source](https://hatch.pypa.io/latest/plugins/version-source/regex/).
 Keep schema/API ranges separate from plugin release numbers. Evaluation case and
-run configuration are draft 0.1. The evaluation runner arrives in step C; no eval
-command or extra is claimed available yet. Judge scores remain advisory.
+run configuration are draft 0.1. Use the local runner below after selecting your models and credential environment variables. Judge scores remain advisory.
 
 ## Marketplace release
 
@@ -93,3 +92,46 @@ packaging do not import it or require a native OpenStudio CLI. Budget roughly
 370 MB for the environment; size varies with platform and dependencies. The
 pinned OpenStudio 3.11.0 package currently has no Windows Python 3.14 wheel;
 use a supported Python/platform combination (CI uses Linux/Python 3.13).
+
+
+## Local agent evaluation with DeepEval
+
+Install `python -m pip install "openstudio-si[eval]"`. Edit the generated
+`eval-run.example.yaml`, select agent/judge models and the DeepEval judge supplier, set credential
+ENVIRONMENT VARIABLES, and save as `eval-run.local.yaml`. Export first, then run:
+
+```bash
+openstudio-si eval run --plugin ./plugin --cases ./plugin/evals/cases \
+  --config ./eval-run.local.yaml --output ./outputs/evals/run-001
+openstudio-si eval report --run ./outputs/evals/run-001
+```
+
+Plugin paths are relative to the config file. Cases and run/result contracts are
+draft 0.1. The first host drivers use API/gateway credentials in isolated state,
+not existing subscription login files. Claude needs explicit allowed_tools for
+shell/edit tasks. Codex currently cannot verify skill activation through exec
+JSONL; those checks are marked not_observable with notes. Codex defaults to
+read-only; opt into agent.sandbox: workspace-write for edits. Host capability
+profiles are recorded, and MCP policies remain plugin-defined. Text model checks do not validate
+sizing; metrics quoted in prose are unverified notes. SQL/binary content
+extraction is not implemented; a metric requiring file contents must declare
+required_artifacts and include context. Keep reviewed references out of inputs. Cases configure G-Eval criteria or steps, evidence parameters and optional score bands. Judge scores stay advisory. Keep all actual LLM execution out of CI;
+unit-testing the framework with local stubs requires no model credentials.
+
+Hosted judges receive selected evaluation data, potentially including full tool
+traces, reference text and OSM/project artifacts. Known-secret redaction is not
+project-data anonymization. Use Ollama or an approved internal gateway for sensitive
+data. Proxy/CA environment settings are inherited; MCP-declared variables are shared
+with the agent process and listed in the capability metadata.
+
+Re-export after every source or case edit. Use expected.model.path to select a
+saved output when a workflow generates several OSM files; server intermediates are
+kept as evidence. The report labels SI's weighted score separately from native
+DeepEval per-metric pass. Both are advisory.
+
+The optional plugin/evals/calibration/judge-injection-canary.json exercises a judge
+with a deliberately wrong answer containing scoring instructions. Run eval with
+--cases ./plugin/evals/calibration in a separate output directory and inspect the
+actual answer. A low correctness score is intended. JSON evidence boundaries and
+grading rules reduce injection exposure, but each real provider/model needs local
+calibration. This canary is not part of the default cases or CI.

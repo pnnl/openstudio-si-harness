@@ -1,6 +1,5 @@
 """Shared deterministic project, host and marketplace-candidate commands."""
 
-from importlib.resources import files
 import hashlib
 import json
 from pathlib import Path
@@ -13,7 +12,6 @@ import threading
 import time
 import zipfile
 
-from jsonschema import Draft202012Validator
 from . import __version__
 from .export import DESCRIPTOR, export_plugin, validate_export
 from .manifest import load_plugin
@@ -22,31 +20,9 @@ from .manifest import load_plugin
 def check_project(root: Path, require_tracked: bool = False) -> dict:
     root = root.resolve()
     plugin = load_plugin(root / "plugin")
-    schema = json.loads(
-        files("openstudio_si_harness")
-        .joinpath("schemas/evaluation-case.schema.json")
-        .read_text()
-    )
-    cases = sorted(
-        (root / "plugin" / plugin["manifest"]["evaluation"]["cases"]).glob("*.json")
-    )
-    if not cases:
-        raise ValueError("Supply at least one evaluation case.")
-    for case in cases:
-        data = json.loads(case.read_text())
-        errors = list(Draft202012Validator(schema).iter_errors(data))
-        if errors:
-            raise ValueError(
-                f"Invalid evaluation case {case.name}: {errors[0].message}"
-            )
-        for relative in [*data["inputs"], data.get("expected", {}).get("reference")]:
-            if relative is None:
-                continue
-            path = (root / "plugin" / relative).resolve()
-            if not path.is_relative_to(root / "plugin") or not path.is_file():
-                raise ValueError(
-                    f"Missing or escaping evaluation input/reference: {relative}"
-                )
+    from .evaluation.contracts import load_cases
+
+    cases = load_cases(root / "plugin" / plugin["manifest"]["evaluation"]["cases"], root / "plugin")
     if require_tracked:
         selected = [*plugin["files"], Path("openstudio-si-plugin.yaml")]
         if (root / "plugin/.mcp.json").exists():

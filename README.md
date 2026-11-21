@@ -492,3 +492,11 @@ pinned workflows using a published openstudio-si version. Lab publication target
 the shared marketplace through a scoped PR, with no lab PyPI release. See the
 [tooling commands](packages/plugin-tools/README.md) and
 [implementation plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
+
+
+DeepEval-based local agent evaluation is available for step-C review through
+`pip install "openstudio-si[eval]"` and `openstudio-si eval run`, `judge`, and
+`report`. It captures real host traces and artifact evidence, keeping observable
+checks separate from advisory LLM scores. Actual model runs stay developer-run;
+CI tests the framework using local stubs. See the
+[evaluation guide](docs/PLUGIN_EVALUATION.md) for configuration and limitations.

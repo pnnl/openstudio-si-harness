@@ -74,8 +74,9 @@ release logic lives in the wheel's CLI; no implementation scripts are copied
 into each lab repository. An MCP starter also contains a dependency-free read-only example
 server and console command. Every evaluation resource is exported with the
 plugin. Initial cases demonstrate the layout and must be replaced with real
-domain cases. Agent/LLM evaluation and the `[eval]` extra arrive in step C;
-example run configuration is explicitly draft and not executable yet.
+domain cases. Step C adds the DeepEval-based local runner through `openstudio-si[eval]`; its run/result
+contracts remain draft 0.1. Generated configurations require your model choices
+and credential environment variables before execution.
 
 The Python package build reads the canonical version from the YAML manifest
 using Hatch's regex version source. Generated versions must satisfy SemVer and
@@ -222,8 +223,8 @@ The second command generates the starter with and without the MCP example, check
 packages and their own host-check scripts, and checks provider/consumer fixtures. It requires Claude Code, Codex and npm's semver package. CI
 pins these tools, validates Claude exports, and uses Codex's app-server
 plugin/read loader to check skill and MCP discovery without an LLM session.
-The evaluation runner, LLM judge adapters, generic doctor and marketplace
-submission remain later steps.
+The generic doctor and marketplace submission remain later steps. The local
+evaluation runner is now implemented for step-C review; see the evaluation guide.
 
 
 The contributor supplies the plugin's own release version and dependency ranges.
@@ -268,3 +269,14 @@ against the installed wheel, so source-archive usability is verified explicitly.
 The missing-extra hint handles absent jsonschema/packaging imports; it is not an
 extra-installation flag. MCP already installs jsonschema transitively, so it
 usually detects missing packaging. Generation/export do not import the SDK.
+
+
+## Developer-run agent evaluations with DeepEval
+
+Install `openstudio-si[eval]` and use `openstudio-si eval run`, `judge` and `report`.
+[The evaluation guide](../../docs/PLUGIN_EVALUATION.md) covers draft schemas,
+API/gateway models, fresh host state, artifact evidence, advisory judgments and
+current limitations. Tests exercise the implementation with local stubs; no CI
+workflow invokes actual agents/judges. Generic descriptor-verified host exports
+are supported; production core/HVAC export bindings remain separate. No paid
+model runs were used to verify this implementation.

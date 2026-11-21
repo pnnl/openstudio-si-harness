@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft OpenStudio SI evaluation-judge-config 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "framework": {
+      "const": "deepeval"
+    },
+    "provider": {
+      "enum": [
+        "openai",
+        "azure-openai",
+        "anthropic",
+        "gemini",
+        "ollama",
+        "openai-compatible"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "api_key_env": {
+      "type": "string",
+      "pattern": "^[A-Z_][A-Z0-9_]*$"
+    },
+    "base_url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "deployment_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "api_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 64,
+      "maximum": 8192
+    },
+    "geval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "strict_mode": {
+          "type": "boolean"
+        },
+        "top_logprobs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      },
+      "required": []
+    }
+  },
+  "required": [
+    "framework",
+    "provider",
+    "model"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "ollama"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "api_key_env"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "api_key_env"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "azure-openai"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "base_url",
+          "deployment_name",
+          "api_version"
+        ]
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "deployment_name"
+              ]
+            },
+            {
+              "required": [
+                "api_version"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "openai-compatible"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "base_url"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "gemini"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "base_url"
+          ]
+        }
+      }
+    }
+  ]
+}

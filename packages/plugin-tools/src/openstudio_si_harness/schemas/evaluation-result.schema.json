@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft OpenStudio SI evaluation-result 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case": {
+      "type": "object"
+    },
+    "case_hash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "legacy_routing": {
+      "type": "boolean"
+    },
+    "arm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repeat": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "host": {
+      "enum": [
+        "claude",
+        "codex"
+      ]
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api_key_env": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$"
+        },
+        "base_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "sandbox": {
+          "enum": [
+            "read-only",
+            "workspace-write"
+          ]
+        }
+      },
+      "required": [
+        "model"
+      ]
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "host_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "incomplete"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "usage": {
+      "type": "object"
+    },
+    "evidence_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "judge": {
+      "type": "object"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "capabilities": {
+      "type": "object"
+    },
+    "environment_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "holdout_pending": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "case",
+    "case_hash",
+    "legacy_routing",
+    "arm",
+    "repeat",
+    "host",
+    "agent",
+    "plugins",
+    "host_version",
+    "status",
+    "checks",
+    "gaps",
+    "usage",
+    "evidence_hashes",
+    "judge"
+  ]
+}

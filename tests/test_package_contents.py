@@ -54,6 +54,22 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     assert "openstudio_si/cli.py" in wheel_names
     assert "openstudio_si_mcp/command.py" not in wheel_names
     assert "openstudio_si_harness/cli.py" in wheel_names
+    assert "openstudio_si_harness/evaluation/runner.py" in wheel_names
+    assert "openstudio_si_harness/evaluation/hosts.py" in wheel_names
+    assert "openstudio_si_harness/evaluation/isolation.py" in wheel_names
+    assert "openstudio_si_harness/evaluation/environment.py" in wheel_names
+    assert "openstudio_si_harness/evaluation/judge.py" in wheel_names
+    assert "openstudio_si_harness/schemas/evaluation-run.schema.json" in wheel_names
+    assert "openstudio_si_harness/schemas/evaluation-result.schema.json" in wheel_names
+    assert "openstudio_si_harness/evaluation/deepeval_backend.py" in wheel_names
+    assert (
+        "openstudio_si_harness/schemas/evaluation-judge-config.schema.json"
+        in wheel_names
+    )
+    assert (
+        "openstudio_si_harness/schemas/evaluation-judgment.schema.json"
+        not in wheel_names
+    )
     assert "openstudio_si_harness/schemas/plugin.schema.json" in wheel_names
     assert "openstudio_si_harness/templates/common/README.md.tmpl" in wheel_names
     assert "openstudio_si_harness/templates/ci/validate.yml.tmpl" in wheel_names

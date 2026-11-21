@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Draft OpenStudio SI plugin agent evaluation case 0.1",
-  "description": "Extends the case shape in PR #35 with a required judge rubric. Model credentials live in run configuration.",
+  "description": "Draft SI tasks and evidence requirements mapped to DeepEval LLMTestCase and configurable G-Eval metrics. Cases without judge metrics run observable checks only.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -14,11 +14,13 @@
     },
     "description": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 4096
     },
     "prompt": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 100000
     },
     "inputs": {
       "type": "array",
@@ -203,8 +205,35 @@
                 "required": [
                   "type",
                   "field"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "equals"
+                    ],
+                    "not": {
+                      "required": [
+                        "contains"
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "contains"
+                    ],
+                    "not": {
+                      "required": [
+                        "equals"
+                      ]
+                    }
+                  }
                 ]
               }
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
             }
           },
           "required": []
@@ -213,6 +242,11 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
         }
       },
       "required": []
@@ -221,7 +255,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "rubric": {
+        "framework": {
+          "const": "deepeval"
+        },
+        "metrics": {
           "type": "array",
           "items": {
             "type": "object",
@@ -231,22 +268,132 @@
                 "type": "string",
                 "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
               },
-              "criterion": {
+              "name": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 8192
+              },
+              "type": {
+                "const": "geval"
+              },
+              "criteria": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              },
+              "evaluation_steps": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8192
+                },
+                "minItems": 1,
+                "maxItems": 100
+              },
+              "evaluation_params": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "input",
+                    "actual_output",
+                    "expected_output",
+                    "context",
+                    "retrieval_context",
+                    "tools_called",
+                    "expected_tools"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
               },
               "weight": {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "strict_mode": {
+                "type": "boolean"
+              },
+              "top_logprobs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "rubric": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 11,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "score_range": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "expected_outcome": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8192
+                    }
+                  },
+                  "required": [
+                    "score_range",
+                    "expected_outcome"
+                  ]
+                }
+              },
+              "required_artifacts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
               }
             },
             "required": [
               "id",
-              "criterion",
-              "weight"
+              "type",
+              "evaluation_params"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "criteria"
+                ],
+                "not": {
+                  "required": [
+                    "evaluation_steps"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "evaluation_steps"
+                ],
+                "not": {
+                  "required": [
+                    "criteria"
+                  ]
+                }
+              }
             ]
           },
-          "minItems": 1
+          "minItems": 1,
+          "maxItems": 100
         },
         "threshold": {
           "type": "number",
@@ -255,9 +402,30 @@
         }
       },
       "required": [
-        "rubric",
+        "framework",
+        "metrics",
         "threshold"
       ]
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "retrieval_context": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "minItems": 1,
+      "maxItems": 100
     }
   },
   "required": [
@@ -265,8 +433,7 @@
     "case_id",
     "description",
     "prompt",
-    "inputs",
-    "judge"
+    "inputs"
   ],
   "$defs": {
     "tool": {
