@@ -118,6 +118,25 @@ extraction is not implemented; a metric requiring file contents must declare
 required_artifacts and include context. Keep reviewed references out of inputs. Cases configure G-Eval criteria or steps, evidence parameters and optional score bands. Judge scores stay advisory. Keep all actual LLM execution out of CI;
 unit-testing the framework with local stubs requires no model credentials.
 
+Use `expected.output` for literal answers instead of treating the answer string as
+a private reference document. Single-line tool-result overlap is an advisory
+warning next to the score; answer-only matches have lower confidence. A whole
+private reference in tool results, or a strict majority of its distinct substantial
+private lines (at least two), fails the session and skips judging. Substantial
+means at least 32 normalized characters; whole-reference matching uses the same
+minimum. Text present in the prompt, inputs or installed plugin files is excluded.
+Explicit evaluation-path access also fails the session and skips judging.
+`summary.json` includes a total `warning_count` across sessions.
+
+Write references in your own words as independently reviewed expectations; do not
+paste plugin tool output into them. A correct call to the same tool can otherwise
+match the whole reference and fail the session. Use `expected.output` for literal
+answers or `expected.model` checks for supported model properties. Rewording reduces
+accidental matches but cannot guarantee that the audit identifies the text's source.
+Short table rows such as `Core | 41.2` are below the content threshold: a whole-table
+read can be detected, while reads split across tool results may produce no content
+finding. The heuristic is not complete answer-key protection.
+
 Hosted judges receive selected evaluation data, potentially including full tool
 traces, reference text and OSM/project artifacts. Known-secret redaction is not
 project-data anonymization. Use Ollama or an approved internal gateway for sensitive

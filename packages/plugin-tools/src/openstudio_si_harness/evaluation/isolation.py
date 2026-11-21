@@ -118,28 +118,41 @@ def external_model_paths(trace, workspace, home):
     return sorted(set(outside))
 
 
-def holdout_content(trace, answer, references, hashes=()):
+def holdout_content(trace, answer, references, hashes=(), *, public_texts=()):
     """Conservative contamination indicators, not proof of where text was obtained.
 
-    Whole references or individual reference lines of at least 32 normalized
-    characters (or file hashes) require review. Short facts/numbers do not.
+    Tool results containing a whole private reference or a strict majority of its
+    substantial lines block judging. Other overlaps remain advisory. Public text
+    is excluded; answer-only matches never block.
     """
 
-    def normalize(value):
+    def normalize(value, *, tool_output=False):
         lines = []
         for line in unicodedata.normalize("NFKC", value).splitlines():
             # Grep's path:N: / path-N- and Read/cat's N-tab / N-arrow columns.
-            line = re.sub(r"^\s*[^\r\n]+?[:\-]\d+[:\-][ \t]*", "", line)
-            line = re.sub(r"^\s*\d+(?:\t+|[ \t]*[→│|][ \t]*)", "", line)
+            if tool_output:
+                line = re.sub(r"^\s*[^\r\n]+?[:\-]\d+[:\-][ \t]*", "", line)
+                line = re.sub(r"^\s*\d+(?:\t+|[ \t]*[→│|][ \t]*)", "", line)
             lines.append(line)
         return " ".join(" ".join(lines).casefold().split())
 
-    needles = {
-        text
-        for value in references
-        for part in (value, *value.splitlines())
-        if len(text := normalize(part)) >= 32
-    }
+    public = [normalize(value) for value in public_texts]
+    private = []
+    for value in references:
+        whole = normalize(value)
+        if len(whole) < 32 or any(whole in text for text in public):
+            continue
+        private_lines = {
+            line
+            for raw in value.splitlines()
+            if (line := normalize(raw)) and not any(line in text for text in public)
+        }
+        if not private_lines:
+            continue
+        lines = {line for line in private_lines if len(line) >= 32}
+        private.append((whole, lines))
+    needles = {text for whole, lines in private for text in (whole, *lines)}
+    hashes = [value for value in hashes if not any(value in text for text in public)]
 
     def strings(value):
         if isinstance(value, str):
@@ -151,14 +164,25 @@ def holdout_content(trace, answer, references, hashes=()):
             for child in value:
                 yield from strings(child)
 
-    hits = []
-    sources = [("answer", answer), *[(row["id"], row.get("result")) for row in trace]]
-    for identity, content in sources:
-        for value in strings(content):
-            text = normalize(value)
-            if any(needle in text for needle in needles) or any(
-                hash_value in text for hash_value in hashes
-            ):
-                hits.append(identity + ":holdout_content")
-                break
-    return hits
+    tools = {
+        row["id"]: normalize("\n".join(strings(row.get("result"))), tool_output=True)
+        for row in trace
+    }
+    blocking = set()
+    for whole, lines in private:
+        blocking.update(identity for identity, text in tools.items() if whole in text)
+        matched = {
+            line for line in lines if any(line in text for text in tools.values())
+        }
+        if len(matched) >= 2 and len(matched) * 2 > len(lines):
+            blocking.update(
+                identity
+                for identity, text in tools.items()
+                if any(line in text for line in matched)
+            )
+    return [
+        {"location": identity + ":holdout_content", "blocking": identity in blocking}
+        for identity, text in [("answer", normalize(answer)), *tools.items()]
+        if any(needle in text for needle in needles)
+        or any(value in text for value in hashes)
+    ]

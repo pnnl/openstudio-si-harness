@@ -17,7 +17,7 @@ from .compatibility import semver
 from .manifest import load_plugin
 from .mcp import override_variable
 
-TEMPLATE_VERSION = "0.6"
+TEMPLATE_VERSION = "0.9"
 LICENSES = ("BSD-2-Clause", "BSD-3-Clause", "MIT")
 IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 

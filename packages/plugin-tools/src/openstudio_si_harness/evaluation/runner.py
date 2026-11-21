@@ -436,6 +436,7 @@ def run(plugin, cases, config_path, output):
             "checks": [],
             "gaps": [],
             "notes": [],
+            "warnings": [],
             "capabilities": {},
             "environment_names": [],
             "usage": {},
@@ -468,6 +469,10 @@ def run(plugin, cases, config_path, output):
                 original[target.relative_to(workspace).as_posix()] = digest(data)
             write(session / "inputs.json", original)
             copied = []
+            public_texts = [
+                (workspace / relative).read_text(errors="replace")
+                for relative in original
+            ]
             for name in selection["plugins"]:
                 package = packages[name]
                 target = private / "plugins" / name
@@ -483,12 +488,17 @@ def run(plugin, cases, config_path, output):
                         info["agent_view_file_hashes"] = receipt["files"]
                         info["withheld_evaluation_files"] = receipt["withheld"]
                 copied.append(target)
+                public_texts.extend(
+                    (target / relative).read_text(errors="replace")
+                    for relative in receipt["files"]
+                )
             prompt = (
                 case["prompt"]
                 .replace("{input_dir}", str(workspace / "inputs"))
                 .replace("{sandbox}", str(workspace))
             )
             (session / "prompt.txt").write_text(redact(prompt))
+            public_texts.append(prompt)
             case_deadline = min(start + limits["case_timeout_seconds"], deadline)
             budget = case_deadline - time.monotonic()
             if budget <= 0:
@@ -591,20 +601,35 @@ def run(plugin, cases, config_path, output):
                 output,
                 withheld_files,
             )
-            accesses.extend(
-                holdout_content(
-                    normalized["trace"],
-                    normalized["answer"],
-                    holdouts.values(),
-                    holdout_hashes,
-                )
+            matches = holdout_content(
+                normalized["trace"],
+                normalized["answer"],
+                holdouts.values(),
+                holdout_hashes,
+                public_texts=map(redact, public_texts),
             )
+            accesses.extend(match["location"] for match in matches if match["blocking"])
+            advisory = [match["location"] for match in matches if not match["blocking"]]
+            if advisory:
+                result["warnings"].append(
+                    {
+                        "code": "reference_text_match",
+                        "confidence": (
+                            "low"
+                            if advisory == ["answer:holdout_content"]
+                            else "medium"
+                        ),
+                        "locations": advisory,
+                        "message": "Reference text overlap warrants review; it is not proof of access and does not affect status or scoring.",
+                    }
+                )
             result["checks"].append(
                 {
                     "check": "holdout_access",
                     "passed": not accesses,
                     "reason": (
-                        "Holdout path/content indicators in " + ", ".join(accesses)
+                        "Holdout path or substantial reference content in "
+                        + ", ".join(accesses)
                         if accesses
                         else "No evaluation material access observed."
                     ),
@@ -905,6 +930,7 @@ def report(root):
                 "status": result["status"],
                 "gaps": result["gaps"],
                 "notes": result.get("notes", []),
+                "warnings": result.get("warnings", []),
                 "capabilities": result.get("capabilities", {}),
                 "checks": result["checks"],
                 "usage": result["usage"],
@@ -924,6 +950,7 @@ def report(root):
         "status": status,
         "score_policy": "advisory",
         "sessions": rows,
+        "warning_count": sum(len(row.get("warnings", [])) for row in rows),
         "skipped_cases": metadata.get("skipped_cases", []),
     }
     write(root / "summary.json", value)
@@ -934,8 +961,8 @@ def report(root):
         "",
         "Judge scores are advisory; observable checks remain independent. Unknown usage/cost is not estimated.",
         "",
-        "| Session | Observations | Judge | SI weighted score (advisory) | Input tokens | Output tokens | Agent cost USD |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Session | Observations | Judge | SI weighted score (advisory) | Reference text warnings | Input tokens | Output tokens | Agent cost USD |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         cells = [
@@ -943,11 +970,22 @@ def report(root):
             row["status"],
             row["judge"]["status"],
             row["judge"].get("score", "—"),
+            ", ".join(w["confidence"] + " confidence" for w in row.get("warnings", []))
+            or "—",
             row["usage"].get("input_tokens", "unknown"),
             row["usage"].get("output_tokens", "unknown"),
             row["usage"].get("cost_usd", "unknown"),
         ]
         lines.append("| " + " | ".join(map(str, cells)) + " |")
+        for warning in row.get("warnings", []):
+            lines.append(
+                "\nReference text warning ("
+                + warning["confidence"]
+                + " confidence): "
+                + warning["message"]
+                + " Locations: "
+                + ", ".join(warning["locations"])
+            )
         for check in row["checks"]:
             if check["passed"] is False:
                 lines.append(f'\nFailed check: {check["check"]}: {check["reason"]}')
