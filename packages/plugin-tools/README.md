@@ -17,7 +17,21 @@ openstudio-si plugin init ./my-plugin --id my-plugin --owner my-lab --maintainer
 openstudio-si plugin validate ./my-plugin/plugin
 openstudio-si plugin export ./my-plugin/plugin --host all --output ./my-plugin/dist/plugin
 openstudio-si plugin validate ./my-plugin/dist/plugin/codex/my-plugin
+openstudio-si plugin doctor --plugin-dir ./my-plugin/dist/plugin/codex/my-plugin
 ```
+
+The draft doctor inspects host-scoped generic plugin metadata, dependency versions, capability
+requirements and cycles. `ready` means metadata prerequisites passed; it does not
+establish host enablement or a live MCP connection. Runtime/dataset probes report
+unknown by default. Python, command and configuration prerequisites can now be
+checked with an explicit local `--runtime-profile` and `--check-runtime`; inventory
+remains passive. Profiles declare the host, Python/cwd/PATH and named environment
+references. Terminal state is not host evidence. Use `--host codex`
+or `--host claude` to select host packages and bind source directories to a host.
+Legacy core/HVAC dependencies point to `openstudio-si doctor` and report unknown.
+See the [readiness contract](../../docs/PLUGIN_READINESS.md) for selection,
+cache discovery, evidence and exit codes. Existing core/HVAC doctor behavior is
+unchanged; MCP/dataset probes, host enablement and BESD extraction remain later step-D work.
 
 For an unpublished checkout, build from the repository root and install that wheel:
 

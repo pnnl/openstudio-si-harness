@@ -10,7 +10,7 @@ import sys
 from . import __version__, HARNESS_API_VERSION
 from .mcp import host_servers
 
-from .manifest import load_plugin
+from .manifest import load_plugin, validate_manifest_schema
 from .content import safe_relative
 
 HOSTS = ("claude", "codex")
@@ -166,6 +166,7 @@ def validate_export(directory: Path) -> dict:
         or not isinstance(descriptor["source_mcp_servers"], dict)
     ):
         raise ValueError("Invalid exported package descriptor values.")
+    validate_manifest_schema(descriptor["manifest"])
     if (
         descriptor.get("format") != "openstudio-si-export/1"
         or descriptor.get("host") not in HOSTS

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft selected-runtime profile 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "host", "runtimes", "bindings"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "host": {"enum": ["claude", "codex"]},
+    "runtimes": {
+      "type": "object", "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["python", "cwd", "path", "env"],
+        "properties": {
+          "python": {"type": "string", "minLength": 1},
+          "cwd": {"type": "string", "minLength": 1},
+          "path": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "metadata_paths": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}, "description": "Optional explicit package metadata directories, including user-site/PYTHONPATH locations; no startup hooks are executed."},
+          "env": {
+            "type": "object", "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+            "additionalProperties": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+            "description": "Destination variable names mapped to source variable NAMES, never literal values. PATH is supplied by path instead."
+          }
+        }
+      }
+    },
+    "bindings": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["plugin", "dependency", "runtime"],
+        "properties": {
+          "plugin": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "dependency": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "runtime": {"type": "string", "minLength": 1},
+          "allow_command_version": {"type": "boolean", "default": false},
+          "version_format": {"enum": ["semver", "dash-build"], "description": "dash-build normalizes a vendor release-hash token to release+hash; semver preserves prereleases."}
+        }
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "timeout_seconds": {"type": "number", "minimum": 0.1, "maximum": 60},
+        "total_seconds": {"type": "number", "minimum": 0.1, "maximum": 300},
+        "max_output_bytes": {"type": "integer", "minimum": 256, "maximum": 1048576}
+      }
+    }
+  }
+}

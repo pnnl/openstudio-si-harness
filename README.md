@@ -503,3 +503,9 @@ private reference content in tool results block judging.
 Actual model runs stay developer-run;
 CI tests the framework using local stubs. See the
 [evaluation guide](docs/PLUGIN_EVALUATION.md) for configuration and limitations.
+
+Generic plugin metadata readiness is available through `openstudio-si plugin doctor`:
+it reports descriptions, dependencies and capability prerequisites without starting
+services. Explicit local runtime profiles add bounded Python/configuration/command
+checks with `--check-runtime`; live MCP/dataset and host enablement evidence remain
+unknown. See the [readiness contract](docs/PLUGIN_READINESS.md).

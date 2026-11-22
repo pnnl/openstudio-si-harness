@@ -24,6 +24,27 @@ def main(argv=None) -> int:
         "validate", help="Validate identity, dependencies, and content."
     )
     validate.add_argument("source", type=Path)
+    doctor = plugin.add_parser(
+        "doctor", help="Inspect plugin metadata readiness without starting services."
+    )
+    doctor.add_argument("--plugin-dir", type=Path, action="append", default=[])
+    doctor.add_argument("--plugin-id")
+    doctor.add_argument(
+        "--host",
+        choices=HOSTS,
+        help="Select a host and bind explicitly supplied source plugins to it.",
+    )
+    doctor.add_argument("--capability")
+    doctor.add_argument(
+        "--runtime-profile",
+        type=Path,
+        help="Host-bound local runtime profile; no probes run without --check-runtime.",
+    )
+    doctor.add_argument(
+        "--check-runtime",
+        action="store_true",
+        help="Run bounded probes in explicitly bound runtimes.",
+    )
     export = plugin.add_parser("export", help="Export independent host packages.")
     export.add_argument("source", type=Path)
     export.add_argument("--host", choices=(*HOSTS, "all"), default="all")
@@ -89,7 +110,18 @@ def main(argv=None) -> int:
     prepare.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        if args.action == "init":
+        if args.action == "doctor":
+            from .readiness import doctor as diagnose
+
+            result = diagnose(
+                args.plugin_dir,
+                plugin_id=args.plugin_id,
+                capability=args.capability,
+                host=args.host,
+                runtime_profile=args.runtime_profile,
+                check_runtime=args.check_runtime,
+            )
+        elif args.action == "init":
             result = init_project(
                 args.destination,
                 identity=args.identity,
@@ -144,6 +176,8 @@ def main(argv=None) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2))
+    if args.action == "doctor":
+        return 0 if result["status"] == "ready" else 2
     return 0
 
 

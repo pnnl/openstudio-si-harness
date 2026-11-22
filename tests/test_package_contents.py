@@ -54,6 +54,15 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     assert "openstudio_si/cli.py" in wheel_names
     assert "openstudio_si_mcp/command.py" not in wheel_names
     assert "openstudio_si_harness/cli.py" in wheel_names
+    for module in (
+        "readiness",
+        "runtime",
+        "runtime_worker",
+        "runtime_supervisor",
+        "process",
+    ):
+        assert f"openstudio_si_harness/{module}.py" in wheel_names
+    assert "openstudio_si_harness/schemas/runtime-profile.schema.json" in wheel_names
     assert "openstudio_si_harness/evaluation/runner.py" in wheel_names
     assert "openstudio_si_harness/evaluation/hosts.py" in wheel_names
     assert "openstudio_si_harness/evaluation/isolation.py" in wheel_names

@@ -7,8 +7,8 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from . import HARNESS_API_VERSION
-from .content import selected_files
 from .compatibility import satisfies, semver, validate_range
+from .content import selected_files
 from .discovery import inspect_contents, read_yaml
 
 MANIFEST = "openstudio-si-plugin.yaml"
@@ -20,6 +20,23 @@ PROBES = {
     "dataset": {"dataset-metadata"},
     "configuration": {"configuration-present"},
 }
+
+
+def validate_manifest_schema(data):
+    """Validate structure before callers dereference nested manifest fields."""
+    schema = json.loads(
+        files("openstudio_si_harness")
+        .joinpath("schemas/plugin.schema.json")
+        .read_text()
+    )
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(data),
+        key=lambda error: str(error.json_path),
+    )
+    if errors:
+        raise ValueError(
+            "; ".join(f"{error.json_path}: {error.message}" for error in errors)
+        )
 
 
 def load_plugin(directory: Path) -> dict:
@@ -34,23 +51,10 @@ def load_plugin(directory: Path) -> dict:
         raise ValueError("Exported package is missing its export descriptor.")
     if not root.is_dir():
         raise ValueError(f"Plugin source is not a directory: {directory}")
-
     if (root / MANIFEST).is_symlink():
         raise ValueError("Manifest must not be a symlink.")
     data = read_yaml((root / MANIFEST).read_text(encoding="utf-8"))
-    schema = json.loads(
-        files("openstudio_si_harness")
-        .joinpath("schemas/plugin.schema.json")
-        .read_text()
-    )
-    errors = sorted(
-        Draft202012Validator(schema).iter_errors(data),
-        key=lambda error: str(error.json_path),
-    )
-    if errors:
-        raise ValueError(
-            "; ".join(f"{error.json_path}: {error.message}" for error in errors)
-        )
+    validate_manifest_schema(data)
     semver(data["version"])
     if data["id"] in {"openstudio-si", "openstudio-si-hvac"}:
         raise ValueError(
