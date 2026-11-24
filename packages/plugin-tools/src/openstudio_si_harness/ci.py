@@ -27,10 +27,10 @@ def configure_ci(
         r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tooling_version
     ):
         raise ValueError(
-            "Tooling version must be an exact stable release, such as 0.4.4."
+            "Tooling version must be an exact stable release, such as 0.5.1."
         )
-    if tuple(map(int, tooling_version.split("."))) < (0, 4, 3):
-        raise ValueError("Plugin development requires openstudio-si>=0.4.3.")
+    if tuple(map(int, tooling_version.split("."))) < (0, 5, 0):
+        raise ValueError("Plugin development requires openstudio-si>=0.5.0.")
     state_path = root / ".openstudio-si/ci.json"
     state = json.loads(state_path.read_text())
     replacements = {}

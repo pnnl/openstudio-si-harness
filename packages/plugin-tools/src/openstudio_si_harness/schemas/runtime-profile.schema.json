@@ -12,7 +12,7 @@
       "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
       "additionalProperties": {
         "type": "object", "additionalProperties": false,
-        "required": ["python", "cwd", "path", "env"],
+        "required": ["cwd", "path", "env"],
         "properties": {
           "python": {"type": "string", "minLength": 1},
           "cwd": {"type": "string", "minLength": 1},
@@ -36,7 +36,12 @@
           "dependency": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
           "runtime": {"type": "string", "minLength": 1},
           "allow_command_version": {"type": "boolean", "default": false},
-          "version_format": {"enum": ["semver", "dash-build"], "description": "dash-build normalizes a vendor release-hash token to release+hash; semver preserves prereleases."}
+          "version_format": {"enum": ["semver", "dash-build"], "description": "dash-build normalizes a vendor release-hash token to release+hash; semver preserves prereleases."},
+          "allow_mcp_initialize": {"type": "boolean", "default": false},
+          "required_tools": {"type": "array", "uniqueItems": true, "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+          "allow_dataset_metadata": {"type": "boolean", "default": false, "description": "Trust the selected command to execute --si-dataset-metadata without starting a service."},
+          "dataset_mcp": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "ID of an MCP dependency whose declaration, arguments, environment and executable override are reused for dataset metadata."},
+          "dataset_command": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "ID of a command dependency in the same plugin. The selected executable is called with only --si-dataset-metadata."}
         }
       }
     },
@@ -45,7 +50,7 @@
       "properties": {
         "timeout_seconds": {"type": "number", "minimum": 0.1, "maximum": 60},
         "total_seconds": {"type": "number", "minimum": 0.1, "maximum": 300},
-        "max_output_bytes": {"type": "integer", "minimum": 256, "maximum": 1048576}
+        "max_output_bytes": {"type": "integer", "minimum": 256, "maximum": 4194304}
       }
     }
   }

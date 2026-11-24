@@ -1,4 +1,4 @@
-"""Multiline and partial holdout leaks from the round 5 review."""
+"""Multiline and partial reference-text matching."""
 
 import pytest
 from openstudio_si_harness.evaluation.isolation import holdout_content
@@ -40,20 +40,25 @@ def formatted_reference(style):
 
 
 @pytest.mark.parametrize(
-    "style",
+    "style,where",
     [
-        "read-tab",
-        "read-arrow",
-        "grep",
-        "grep-context",
-        "drop-first",
-        "drop-middle",
-        "drop-last",
-        "one-word",
-        "single-line",
+        (style, where)
+        for style in [
+            "read-tab",
+            "read-arrow",
+            "grep",
+            "grep-context",
+            "drop-first",
+            "drop-middle",
+            "drop-last",
+            "one-word",
+            "single-line",
+        ]
+        for where in ["answer", "tool"]
+        if where == "tool"
+        or style not in {"read-tab", "read-arrow", "grep", "grep-context"}
     ],
 )
-@pytest.mark.parametrize("where", ["answer", "tool"])
 def test_multiline_or_partial_reference_is_flagged(style, where):
     text = formatted_reference(style)
     trace = (
@@ -63,7 +68,10 @@ def test_multiline_or_partial_reference_is_flagged(style, where):
     )
     answer = text if where == "answer" else "Done."
     assert holdout_content(trace, answer, [REFERENCE]) == [
-        f'{"answer" if where=="answer" else "trace:0"}:holdout_content'
+        {
+            "location": f'{"answer" if where=="answer" else "trace:0"}:holdout_content',
+            "blocking": where == "tool" and style != "single-line",
+        }
     ]
 
 
@@ -75,12 +83,13 @@ def test_short_facts_or_unrelated_similar_prose_are_not_flagged():
 
 
 @pytest.mark.parametrize("style", ["read-tab", "grep", "drop-middle", "one-word"])
-def test_multiline_parent_read_is_failed_and_not_judged(tmp_path, monkeypatch, style):
+def test_multiline_parent_read_fails_and_skips_judging(tmp_path, monkeypatch, style):
     from openstudio_si_harness.evaluation import judge
     from openstudio_si_harness.evaluation.runner import rejudge
     from openstudio_si_harness.export import export_plugin
-    from test_evaluation import fake_judge_response, judged_case, run_fixture
-    from test_evaluation_regressions import host
+
+    from .test_host_sessions import host
+    from .test_runner import fake_judge_response, judged_case, run_fixture
 
     payload = formatted_reference(style)
     body = f"""
@@ -111,6 +120,10 @@ sys.exit(0)
         before_run=reference,
     )
     assert result["status"] == "failed"
+    assert any(
+        c["check"] == "holdout_access" and not c["passed"]
+        for c in result["sessions"][0]["checks"]
+    )
     calls = []
     monkeypatch.setenv("R5_JUDGE_KEY", "fake-round5-judge-key")
     monkeypatch.setattr(
@@ -125,5 +138,6 @@ sys.exit(0)
             "api_key_env": "R5_JUDGE_KEY",
         },
     )
-    assert not calls and scored["sessions"][0]["judge"]["status"] == "skipped"
+    assert not calls and scored["status"] == "failed"
+    assert scored["sessions"][0]["judge"]["status"] == "skipped"
     assert "score" not in scored["sessions"][0]["judge"]

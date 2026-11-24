@@ -47,8 +47,8 @@ jobs:
           import importlib.metadata as metadata
           import os, pathlib, subprocess, sys
           version = metadata.version("openstudio-si")
-          if version != os.environ["TOOLING_VERSION"] or tuple(map(int, version.split("."))) < (0, 4, 3):
-              raise SystemExit("Plugin CI requires the selected openstudio-si>=0.4.3 release.")
+          if version != os.environ["TOOLING_VERSION"] or tuple(map(int, version.split("."))) < (0, 5, 0):
+              raise SystemExit("Plugin CI requires the selected openstudio-si>=0.5.0 release.")
           command = pathlib.Path(sys.executable).with_name("openstudio-si")
           for action in ("prepare-hosts", "check-project", "export", "check-hosts", "package-release"):
               result = subprocess.run([str(command), "plugin", action, "--help"], capture_output=True, text=True, check=False)

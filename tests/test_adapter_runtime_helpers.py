@@ -199,7 +199,7 @@ def test_core_metadata_works_without_runtime(tmp_path, host):
 def test_hvac_export_refuses_an_incompatible_core(tmp_path, monkeypatch):
     from adapters import hvac_plugin
 
-    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.5.0")
+    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.6.0")
     with pytest.raises(ValueError, match="outside the HVAC dependency range"):
         hvac_plugin.export_hvac_plugin(
             tmp_path,
@@ -215,9 +215,9 @@ def test_hvac_export_refuses_an_incompatible_core(tmp_path, monkeypatch):
 def test_hvac_forwarders_cover_split_release_hotfixes(tmp_path, monkeypatch):
     from adapters import hvac_plugin
 
-    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.4.4+hotfix")
+    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.5.1+hotfix")
     assert len(hvac_plugin.hvac_forwarders(tmp_path)) == 25
-    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.5.0")
+    monkeypatch.setattr(hvac_plugin, "package_version", lambda: "0.6.0")
     assert hvac_plugin.hvac_forwarders(tmp_path) == {}
 
 

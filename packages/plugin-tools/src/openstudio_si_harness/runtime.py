@@ -18,6 +18,8 @@ from packaging.version import InvalidVersion, Version
 
 from .compatibility import satisfies, semver
 from .discovery import read_yaml
+from .mcp import resolve_server_command
+from .mcp_worker import server_environment
 from .process import process
 
 VERSION_TEXT = re.compile(
@@ -49,7 +51,7 @@ class RuntimeSelection:
             if not all(
                 Path(path).is_absolute()
                 for path in [
-                    runtime["python"],
+                    *([runtime["python"]] if "python" in runtime else []),
                     runtime["cwd"],
                     *runtime["path"],
                     *runtime.get("metadata_paths", []),
@@ -113,9 +115,61 @@ class RuntimeSelection:
                 "python-distribution",
                 "configuration",
                 "command",
+                "mcp-server",
+                "dataset",
             }:
                 self.unused_bindings.append(
                     {**binding, "reason": "runtime_kind_not_supported"}
+                )
+                continue
+            if (
+                binding.get("allow_dataset_metadata")
+                or binding.get("dataset_command")
+                or binding.get("dataset_mcp")
+            ) and available[key]["kind"] != "dataset":
+                self.unused_bindings.append(
+                    {**binding, "reason": "dataset_permission_not_applicable"}
+                )
+                continue
+            if available[key]["kind"] == "dataset":
+                if bool(binding.get("dataset_command")) == bool(
+                    binding.get("dataset_mcp")
+                ):
+                    self.unused_bindings.append(
+                        {**binding, "reason": "dataset_binding_ambiguous"}
+                    )
+                    continue
+                reference = binding.get("dataset_mcp") or binding.get("dataset_command")
+                command = available.get((key[0], reference))
+                expected_kind = (
+                    "mcp-server" if binding.get("dataset_mcp") else "command"
+                )
+                if not command or command["kind"] != expected_kind:
+                    self.unused_bindings.append(
+                        {**binding, "reason": "dataset_command_dependency_missing"}
+                    )
+                    continue
+                linked_binding = self.bindings.get((key[0], reference))
+                if (
+                    binding.get("dataset_mcp")
+                    and linked_binding
+                    and linked_binding["runtime"] != binding["runtime"]
+                ):
+                    self.unused_bindings.append(
+                        {**binding, "reason": "dataset_mcp_runtime_mismatch"}
+                    )
+                    continue
+                binding = {**binding, "_dataset_command": command["target"]}
+            if (
+                binding.get("allow_mcp_initialize") or binding.get("required_tools")
+            ) and available[key]["kind"] != "mcp-server":
+                self.unused_bindings.append(
+                    {**binding, "reason": "mcp_permission_not_applicable"}
+                )
+                continue
+            if binding.get("required_tools") and available[key]["probe"] != "mcp-tools":
+                self.unused_bindings.append(
+                    {**binding, "reason": "tools_check_requires_mcp_tools"}
                 )
                 continue
             if (
@@ -128,7 +182,7 @@ class RuntimeSelection:
                 continue
             self.active_bindings[key] = binding
 
-    def probe(self, dependency, entry, *, requested=True):
+    def probe(self, dependency, entry, *, requested=True, server=None, provider=None):
         key = (entry["id"], dependency["id"])
         if key in self.cache:
             return self.cache[key]
@@ -140,10 +194,27 @@ class RuntimeSelection:
         }
 
         def result(status, reason, **details):
+            actions = {
+                "dataset_cache_missing": "No cache was observed. BESD creates a missing cache on normal server startup; this read-only probe does not start it or prove the dataset unavailable.",
+                "dataset_cache_provenance_unknown": "The cache has no supported build-source record. Review it or explicitly rebuild with the updated provider to establish provenance; doctor never rewrites an existing cache.",
+                "dataset_cache_stale": "The cache was built with different packaged JSON. Review the selected database and explicitly rebuild it if appropriate; doctor does not replace it.",
+                "dataset_cache_invalid": "Select a valid database or explicitly rebuild a reviewed cache; doctor does not repair it.",
+                "dataset_cache_wal_present": "Checkpoint the database using its owner application before requesting a stable cache fingerprint.",
+                "dataset_command_not_found": "Install the provider command on the selected PATH or forward its absolute OPENSTUDIO_SI_<DATASET>_COMMAND override.",
+                "dataset_metadata_not_authorized": "Review the provider command and opt in with allow_dataset_metadata in this dependency's runtime binding.",
+                "mcp_output_limit": "Increase limits.max_output_bytes in the runtime profile (maximum 4194304 bytes), or reduce the server inventory payload.",
+                "runtime_output_limit": "Increase limits.max_output_bytes in the runtime profile (maximum 4194304 bytes).",
+                "mcp_server_command_not_found": "Install the server command on the selected profile PATH or forward its absolute OPENSTUDIO_SI_<SERVER>_COMMAND override.",
+                "mcp_command_override_invalid": "The forwarded MCP executable override must name an absolute executable path.",
+                "mcp_protocol_error": "Check the selected executable and profile environment. Forward HOME for uvx/npx-style launchers and include /usr/bin and /bin for shell-wrapper utilities.",
+            }
             return {
                 "status": status,
                 "reason": reason,
-                "next_action": "Review the selected runtime profile and the dependency requirement; host enablement is checked separately.",
+                "next_action": actions.get(
+                    reason,
+                    "Review the selected runtime profile and the dependency requirement; host enablement is checked separately.",
+                ),
                 "evidence": {**evidence, **details},
             }
 
@@ -154,15 +225,35 @@ class RuntimeSelection:
             return result("unknown", "runtime_check_not_requested")
         if not requested:
             return result("unknown", "runtime_outside_selection")
+        if dependency["kind"] == "mcp-server" and not binding.get(
+            "allow_mcp_initialize", False
+        ):
+            return result("unknown", "mcp_initialization_not_authorized")
+        if dependency["kind"] == "dataset" and not binding.get(
+            "allow_dataset_metadata", False
+        ):
+            return result("unknown", "dataset_metadata_not_authorized")
         if os.name != "posix":
             return result("unknown", "runtime_platform_unsupported")
         runtime = self.profile["runtimes"][binding["runtime"]]
         # Preserve venv interpreter symlinks; resolving them can select base Python.
-        evidence.update(python=runtime["python"], cwd=runtime["cwd"])
-        if (
-            not Path(runtime["python"]).is_file()
-            or not os.access(runtime["python"], os.X_OK)
-            or not Path(runtime["cwd"]).is_dir()
+        evidence["cwd"] = runtime["cwd"]
+        command_probe = dependency["kind"] in {"mcp-server", "dataset"}
+        if command_probe:
+            evidence.update(
+                client_python=sys.executable,
+                server_launch_policy="desktop_command_resolution",
+            )
+        elif "python" not in runtime:
+            return result("unknown", "runtime_python_not_selected")
+        else:
+            evidence["python"] = runtime["python"]
+        if not Path(runtime["cwd"]).is_dir() or (
+            not command_probe
+            and (
+                not Path(runtime["python"]).is_file()
+                or not os.access(runtime["python"], os.X_OK)
+            )
         ):
             return result("unavailable", "selected_runtime_unavailable")
         env = {"PATH": os.pathsep.join(runtime["path"])}
@@ -173,10 +264,75 @@ class RuntimeSelection:
             environment_names=sorted(env),
             unresolved_environment_names=sorted(set(runtime["env"]) - env.keys()),
         )
+        if dependency["kind"] == "dataset":
+            linked_server = binding.get("dataset_mcp")
+            declaration = (
+                server if linked_server else {"command": binding["_dataset_command"]}
+            )
+            if declaration is None:
+                return result("unknown", "mcp_declaration_missing")
+            executable, origin, resolution_error = resolve_server_command(
+                binding["_dataset_command"] if linked_server else dependency["target"],
+                declaration,
+                env,
+                runtime["cwd"],
+            )
+            evidence.update(
+                dataset_command=binding.get("dataset_command"),
+                dataset_mcp=linked_server,
+                provider=provider or entry["id"],
+                resolution_source=origin,
+                dataset_executable=executable,
+                operation="--si-dataset-metadata",
+            )
+            if resolution_error:
+                return result("unavailable", "dataset_command_not_found")
+            try:
+                env = server_environment(declaration, env)
+            except KeyError as exc:
+                return result(
+                    "unavailable",
+                    "mcp_environment_missing",
+                    missing_environment_names=[exc.args[0]],
+                )
+            evidence["environment_names"] = sorted(env)
+            dataset_arguments = declaration.get("args", [])
+        if dependency["kind"] == "mcp-server":
+            evidence.update(
+                server=dependency["target"],
+                provider=provider or entry["id"],
+                home_present=bool(env.get("HOME")),
+            )
+            if server is None:
+                return result("unknown", "mcp_declaration_missing")
+            try:
+                expanded = server_environment(server, env)
+            except KeyError as exc:
+                return result(
+                    "unavailable",
+                    "mcp_environment_missing",
+                    missing_environment_names=[exc.args[0]],
+                )
+            evidence["home_present"] = bool(expanded.get("HOME"))
+            executable, origin, resolution_error = resolve_server_command(
+                dependency["target"], server, env, runtime["cwd"]
+            )
+            evidence["resolution_source"] = origin
+            if resolution_error:
+                return result("unavailable", resolution_error)
+            evidence["server_executable"] = executable
         now = time.monotonic()
         if self.deadline is None:
             self.deadline = now + self.limits["total_seconds"]
         deadline = min(self.deadline, now + self.limits["timeout_seconds"])
+        output_limit = self.profile.get("limits", {}).get(
+            "max_output_bytes",
+            (
+                1048576
+                if dependency["kind"] == "mcp-server"
+                else self.limits["max_output_bytes"]
+            ),
+        )
 
         def execute(command, prompt=None, *, version_output=False):
             remaining = deadline - time.monotonic()
@@ -199,7 +355,7 @@ class RuntimeSelection:
                         runtime["cwd"],
                         env,
                         remaining,
-                        self.limits["max_output_bytes"],
+                        output_limit,
                         prompt,
                         pass_fds=(receipt.fileno(),),
                     )
@@ -239,17 +395,35 @@ class RuntimeSelection:
             )
 
         evidence["measurement_scope"] = "selected_runtime"
-        worker = str(files("openstudio_si_harness").joinpath("runtime_worker.py"))
-        raw, error = execute(
-            [runtime["python"], "-I", "-S", worker],
-            json.dumps(
-                {
-                    "kind": dependency["kind"],
-                    "target": dependency["target"],
-                    "metadata_paths": runtime.get("metadata_paths"),
-                }
-            ),
-        )
+        if dependency["kind"] == "dataset":
+            raw, error = execute(
+                [executable, *dataset_arguments, "--si-dataset-metadata"]
+            )
+        elif dependency["kind"] == "mcp-server":
+            worker = str(files("openstudio_si_harness").joinpath("mcp_worker.py"))
+            raw, error = execute(
+                [sys.executable, "-I", worker],
+                json.dumps(
+                    {
+                        "server": {**server, "command": executable},
+                        "probe": dependency["probe"],
+                        "max_bytes": output_limit,
+                        "timeout_seconds": max(0.05, deadline - time.monotonic() - 0.1),
+                    }
+                ),
+            )
+        else:
+            worker = str(files("openstudio_si_harness").joinpath("runtime_worker.py"))
+            raw, error = execute(
+                [runtime["python"], "-I", "-S", worker],
+                json.dumps(
+                    {
+                        "kind": dependency["kind"],
+                        "target": dependency["target"],
+                        "metadata_paths": runtime.get("metadata_paths"),
+                    }
+                ),
+            )
         if error:
             answer = result("unknown", error)
         else:
@@ -257,7 +431,36 @@ class RuntimeSelection:
                 observed = json.loads(raw)
                 if not isinstance(observed, dict):
                     raise TypeError("Invalid worker response")
-                answer = self._interpret(dependency, binding, observed, execute, result)
+                if dependency["kind"] == "dataset":
+                    text_fields = [
+                        observed.get("dataset"),
+                        observed.get("version"),
+                        *(
+                            observed.get("package", {}).values()
+                            if isinstance(observed.get("package"), dict)
+                            else []
+                        ),
+                    ]
+                    if any(
+                        len(value) >= 4
+                        and any(
+                            isinstance(text, str) and value in text
+                            for text in text_fields
+                        )
+                        for name, value in env.items()
+                        if name != "PATH"
+                    ):
+                        answer = result(
+                            "unknown", "dataset_response_contains_environment_value"
+                        )
+                    else:
+                        answer = self._interpret_dataset(dependency, observed, result)
+                elif dependency["kind"] == "mcp-server":
+                    answer = self._interpret_mcp(dependency, binding, observed, result)
+                else:
+                    answer = self._interpret(
+                        dependency, binding, observed, execute, result
+                    )
             except (ValueError, TypeError, KeyError):
                 answer = result("unknown", "runtime_response_invalid")
         # Never report raw streams or environment values, including a version
@@ -268,8 +471,153 @@ class RuntimeSelection:
             if name != "PATH"
         ):
             answer = result("unknown", "runtime_version_contains_environment_value")
+        if dependency["kind"] == "mcp-server":
+            untrusted = [
+                answer["evidence"].get(name)
+                for name in ("server_name", "server_version", "protocol_version")
+            ]
+            untrusted.extend(answer["evidence"].get("tools") or [])
+            if any(
+                len(value) >= 4
+                and any(isinstance(text, str) and value in text for text in untrusted)
+                for name, value in env.items()
+                if name != "PATH"
+            ):
+                answer = result("unknown", "mcp_response_contains_environment_value")
         self.cache[key] = answer
         return answer
+
+    @staticmethod
+    def _interpret_dataset(dependency, observed, result):
+        schema = json.loads(
+            files("openstudio_si_harness")
+            .joinpath("schemas/dataset-metadata.schema.json")
+            .read_text()
+        )
+        if not Draft202012Validator(schema).is_valid(observed):
+            return result("unknown", "dataset_response_invalid")
+        if observed["dataset"] != dependency["target"]:
+            return result("unknown", "dataset_identity_mismatch")
+        cache = observed["cache"]
+        if (cache["state"] == "ready") != (cache["sha256"] is not None):
+            return result("unknown", "dataset_response_invalid")
+        evidence = {"dataset_metadata": observed}
+        if observed["packaged_data"] is None:
+            return result("unknown", "dataset_packaged_data_unreadable", **evidence)
+        if not observed["package"]["version"]:
+            return result("unknown", "dataset_package_version_unknown", **evidence)
+        if cache["state"] != "ready":
+            return result(
+                ("unavailable" if cache["state"] == "invalid" else "unknown"),
+                "dataset_cache_" + cache["state"],
+                **evidence,
+            )
+        if not cache.get("source_data_sha256"):
+            return result("unknown", "dataset_cache_provenance_unknown", **evidence)
+        if cache["source_data_sha256"] != observed["packaged_data"]["sha256"]:
+            return result("unavailable", "dataset_cache_stale", **evidence)
+        if dependency.get("version_spec"):
+            try:
+                if not observed["version"]:
+                    raise ValueError("Unversioned dataset")
+                compatible = satisfies(observed["version"], dependency["version_spec"])
+            except ValueError:
+                return result("unknown", "dataset_version_unknown", **evidence)
+            if not compatible:
+                return result("unavailable", "dataset_version_conflict", **evidence)
+        return result("ready", "dataset_identity_observed", **evidence)
+
+    @staticmethod
+    def _interpret_mcp(dependency, binding, observed, result):
+        errors = {
+            "mcp_sdk_unavailable",
+            "mcp_output_limit",
+            "mcp_pagination_limit",
+            "mcp_timeout",
+            "mcp_protocol_error",
+        }
+        if (
+            set(observed) == {"ok", "reason"}
+            and observed["ok"] is False
+            and observed["reason"] in errors
+        ):
+            return result("unknown", observed["reason"])
+        if (
+            set(observed)
+            != {
+                "ok",
+                "protocol_version",
+                "server_name",
+                "server_version",
+                "tools_supported",
+                "tools",
+            }
+            or observed["ok"] is not True
+            or type(observed["tools_supported"]) is not bool
+            or any(
+                not isinstance(observed[name], str)
+                or not 0 < len(observed[name]) <= 256
+                for name in ("protocol_version", "server_name")
+            )
+            or not isinstance(observed["server_version"], str)
+            or len(observed["server_version"]) > 256
+        ):
+            raise ValueError("Invalid MCP probe response")
+        tools = observed["tools"]
+        if dependency["probe"] == "mcp-tools":
+            if (
+                not isinstance(tools, list)
+                or len(tools) > 1000
+                or any(
+                    not isinstance(name, str) or not 0 < len(name) <= 256
+                    for name in tools
+                )
+                or len(set(tools)) != len(tools)
+            ):
+                raise ValueError("Invalid MCP tool inventory")
+        elif tools is not None:
+            raise ValueError("Unexpected tools in initialize-only probe")
+        evidence = {
+            name: observed[name]
+            for name in (
+                "protocol_version",
+                "server_name",
+                "server_version",
+                "tools_supported",
+                "tools",
+            )
+        }
+        evidence["probe_connection"] = "initialized_then_closed"
+        evidence["server_version"] = observed["server_version"] or None
+        if dependency["probe"] == "mcp-tools":
+            if not observed["tools_supported"]:
+                return result("unavailable", "mcp_tools_not_supported", **evidence)
+            missing = sorted(set(binding.get("required_tools", [])) - set(tools))
+            if missing:
+                return result(
+                    "unavailable",
+                    "mcp_required_tools_missing",
+                    missing_tools=missing,
+                    **evidence,
+                )
+        if dependency.get("version_spec"):
+            try:
+                compatible = satisfies(
+                    observed["server_version"], dependency["version_spec"]
+                )
+            except ValueError:
+                return result("unknown", "mcp_server_version_invalid", **evidence)
+            if not compatible:
+                return result("unavailable", "mcp_server_version_conflict", **evidence)
+        return result(
+            "ready",
+            (
+                "mcp_tools_available"
+                if dependency["probe"] == "mcp-tools"
+                else "mcp_initialized"
+            ),
+            **evidence,
+        )
 
     @staticmethod
     def _interpret(dependency, binding, observed, execute, result):

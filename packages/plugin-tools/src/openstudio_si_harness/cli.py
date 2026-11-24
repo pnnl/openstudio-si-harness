@@ -25,7 +25,8 @@ def main(argv=None) -> int:
     )
     validate.add_argument("source", type=Path)
     doctor = plugin.add_parser(
-        "doctor", help="Inspect plugin metadata readiness without starting services."
+        "doctor",
+        help="Inspect metadata; optionally run explicitly authorized runtime probes.",
     )
     doctor.add_argument("--plugin-dir", type=Path, action="append", default=[])
     doctor.add_argument("--plugin-id")

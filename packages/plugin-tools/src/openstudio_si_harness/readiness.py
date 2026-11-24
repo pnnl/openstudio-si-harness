@@ -1,4 +1,4 @@
-"""Read-only draft readiness: host-scoped metadata, without executing plugin code."""
+"""Host-scoped metadata and explicitly authorized selected-runtime readiness."""
 
 import sys
 from pathlib import Path
@@ -201,7 +201,16 @@ def doctor(
         kind, target = dependency["kind"], dependency["target"]
         if kind == "plugin":
             return plugin_dependency(dependency, entry, stack)
-        if kind in {"python-distribution", "configuration", "command"}:
+        binding = (
+            runtime_selection.active_bindings.get((entry["id"], dependency["id"]), {})
+            if runtime_selection
+            else {}
+        )
+        linked_dataset = kind == "dataset" and binding.get("dataset_mcp")
+        if (
+            kind in {"python-distribution", "configuration", "command", "dataset"}
+            and not linked_dataset
+        ):
             if runtime_selection:
                 if len(catalog[key(entry)]) != 1:
                     return finding(
@@ -223,20 +232,45 @@ def doctor(
                 runtime="unselected",
                 host=entry["host"],
             )
-        if kind == "mcp-server" and dependency.get("provider"):
-            dependencies = entry["_loaded"]["manifest"]["dependencies"]
-            provider_spec = next(
-                d for d in dependencies if d["id"] == dependency["provider"]
-            )
-            provider_check = plugin_dependency(provider_spec, entry, stack)
-            if provider_check["status"] != "ready":
-                return provider_check
-            provider = provider_candidates(provider_spec, entry)[0]
+        if kind == "mcp-server" or linked_dataset:
+            server_dependency = dependency
+            if linked_dataset:
+                server_dependency = next(
+                    dep
+                    for dep in entry["_loaded"]["manifest"]["dependencies"]
+                    if dep["id"] == binding["dataset_mcp"]
+                )
+                target = server_dependency["target"]
+            provider = entry
+            if server_dependency.get("provider"):
+                dependencies = entry["_loaded"]["manifest"]["dependencies"]
+                provider_spec = next(
+                    d for d in dependencies if d["id"] == server_dependency["provider"]
+                )
+                provider_check = plugin_dependency(provider_spec, entry, stack)
+                if provider_check["status"] != "ready":
+                    return provider_check
+                provider = provider_candidates(provider_spec, entry)[0]
             if target not in provider["_loaded"]["mcp_servers"]:
                 return finding(
                     "unavailable",
                     "provider_mcp_not_declared",
                     "Select a provider release declaring this MCP connection for this host.",
+                )
+            if runtime_selection:
+                if len(catalog[key(entry)]) != 1:
+                    return finding(
+                        "unknown",
+                        "runtime_plugin_ambiguous",
+                        "Select one plugin version before initializing an MCP server.",
+                        measurement_scope="not_measured",
+                    )
+                return runtime_selection.probe(
+                    dependency,
+                    entry,
+                    requested=(*key(entry), dependency["id"]) in requested_runtime,
+                    server=provider["_loaded"]["mcp_servers"][target],
+                    provider=provider["id"],
                 )
         return finding(
             "unknown",

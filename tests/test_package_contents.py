@@ -63,6 +63,8 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
     ):
         assert f"openstudio_si_harness/{module}.py" in wheel_names
     assert "openstudio_si_harness/schemas/runtime-profile.schema.json" in wheel_names
+    assert "openstudio_si_harness/schemas/dataset-metadata.schema.json" in wheel_names
+    assert "openstudio_si_harness/mcp_worker.py" in wheel_names
     assert "openstudio_si_harness/evaluation/runner.py" in wheel_names
     assert "openstudio_si_harness/evaluation/hosts.py" in wheel_names
     assert "openstudio_si_harness/evaluation/isolation.py" in wheel_names
@@ -91,7 +93,7 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
 
     assert "openstudio_si/cli.py" in sdist_names
     assert "packages/plugin-tools/src/openstudio_si_harness/cli.py" in sdist_names
-    assert "packages/plugin-tools/tests/test_ci.py" in sdist_names
+    assert "packages/plugin-tools/tests/authoring/test_ci.py" in sdist_names
 
     terminal_sources = {
         "skills/openstudio_plant_equipment_replacer.md",

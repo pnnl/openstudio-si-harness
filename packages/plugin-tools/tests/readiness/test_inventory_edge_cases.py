@@ -10,7 +10,8 @@ import yaml
 from openstudio_si_harness.cli import main
 from openstudio_si_harness.export import DESCRIPTOR, export_plugin, validate_export
 from openstudio_si_harness.readiness import doctor
-from test_readiness import capability, dependency, plugin
+
+from ..support.plugins import capability, dependency, plugin
 
 
 @pytest.mark.parametrize("cached", [False, True])

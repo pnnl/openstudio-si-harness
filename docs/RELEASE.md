@@ -1,23 +1,54 @@
 # OpenStudio SI PyPI Release Guide
 
-This guide describes how to build and publish the `openstudio-si` Python
-package.
+This guide describes how PNNL builds and publishes the registered `openstudio-si`
+core runtime Python package. It does not define a PyPI release for lab plugins.
+Lab releases target plugin-scoped PRs in `pnnl/openstudio-si-plugins`; their build
+candidates are staged as GitHub release assets for the central importer. Developer
+tooling ships in the same `openstudio-si` wheel; `[plugin-dev]` enables its optional
+dependencies. There is no separate tooling-asset publisher. Build and publish the
+normal root distribution, then configure lab CI with that released version. A
+developer-tool fix now requires a full new `openstudio-si` PyPI release; there
+is no independent tooling release. `configure-ci` accepts exact stable versions
+at or above 0.5.0, and shared CI probes its required commands after installation.
+The tooling version and workflow SHA are pinned separately; the command probe
+catches incompatible pairs.
 
-Current release preparation targets **0.4.2** with MCP interface contract **6.0**.
+Current release preparation targets **0.5.0** with MCP interface contract **6.0**.
 The OpenStudio Python SDK and bundled modeling scripts remain pinned to **3.11.0**.
 This version update prepares local metadata and exports; publishing packages,
 tags and the generated marketplace repository are separate release steps.
 
+## HVAC Modeler release
+
+The core plugin and runtime start the split at `0.5.0`. HVAC Modeler starts
+at `0.2.0` and requires core `>=0.5.0 <0.6.0` and MCP contract `6.0`.
+Install HVAC Modeler from the same marketplace. Claude Code retains old core
+HVAC skill names from `0.5.0` through the `0.5.x` hotfixes. In Codex, the skill
+names are supplied by the HVAC plugin alone.
+
+Update the version and fingerprint in [HVAC release metadata](../harness/hvac_release.json)
+for any change to the exported HVAC package. Generate both host exports and
+run the paired marketplace test. The test prints the observed fingerprint
+if it differs from the tracked value. CI compares this record with the PR
+base and requires a higher HVAC version when the fingerprint changes.
+Both SDK bundles copy shared files from the same canonical sources. The
+paired export test checks that the shared copies hash identically.
+
+After merging the generated marketplace PR, tag the marketplace commit as
+`openstudio-si--v0.5.0` so Claude Code can resolve the HVAC dependency to that
+core release. The release tag belongs in the marketplace repository.
+[Claude Code dependency release tags](https://code.claude.com/docs/en/plugins/dependencies#release-a-plugin-that-others-depend-on)
+
 ## Release Prerequisites
 
-1. Confirm the package name is available on PyPI.
+1. Confirm access to the existing `openstudio-si` PyPI project and check release history.
 
    ```bash
    python -m pip index versions openstudio-si
    ```
 
-   If the name is already owned by another project, change `project.name` in
-   `pyproject.toml` before publishing.
+   Keep the registered package name. The target release is `0.5.0`; if that
+   version is already published, prepare a new version consistently before upload.
 
 2. Create accounts and API tokens:
 

@@ -18,21 +18,21 @@ def test_configure_and_upgrade_thin_pinned_workflows(tmp_path):
     assert pending["on"] == "workflow_dispatch" and pending["permissions"] == {}
     first = "1" * 40
     preview = configure_ci(
-        project, workflow_ref=first, tooling_version="0.4.4", dry_run=True
+        project, workflow_ref=first, tooling_version="0.5.1", dry_run=True
     )
     assert not preview["configured"]
     assert (
         json.loads((project / ".openstudio-si/ci.json").read_text())["configured"]
         is False
     )
-    configure_ci(project, workflow_ref=first, tooling_version="0.4.4")
+    configure_ci(project, workflow_ref=first, tooling_version="0.5.1")
     release = yaml.load(
         (project / ".github/workflows/release-plugin.yml").read_text(),
         Loader=yaml.BaseLoader,
     )
     assert release["permissions"]["contents"] == "read"
     assert release["jobs"]["build"]["uses"].endswith("@" + first)
-    assert release["jobs"]["build"]["with"]["tooling-version"] == "0.4.4"
+    assert release["jobs"]["build"]["with"]["tooling-version"] == "0.5.1"
     assert release["jobs"]["upload"]["permissions"]["contents"] == "write"
     assert "steps" not in release["jobs"]["upload"]
     assert release["jobs"]["upload"]["needs"] == "build"
@@ -52,12 +52,12 @@ def test_configure_and_upgrade_thin_pinned_workflows(tmp_path):
     "version",
     [
         "latest",
-        ">=0.4.4",
-        "0.4.4 --extra-index-url x",
+        ">=0.5.1",
+        "0.5.1 --extra-index-url x",
         "https://example.com/a.whl",
-        "0.4.4\n",
-        "04.4.4",
-        "0.4.4rc1",
+        "0.5.1\n",
+        "00.5.1",
+        "0.5.1rc1",
     ],
 )
 def test_invalid_install_versions_leave_project_unchanged(tmp_path, version):
@@ -109,7 +109,7 @@ def test_installed_configure_ci_command(tmp_path):
             "--workflow-ref",
             "a" * 40,
             "--tooling-version",
-            "0.4.4",
+            "0.5.1",
         ],
         cwd=tmp_path,
         check=False,
@@ -117,9 +117,9 @@ def test_installed_configure_ci_command(tmp_path):
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)["tooling_version"] == "0.4.4"
+    assert json.loads(result.stdout)["tooling_version"] == "0.5.1"
     assert (
-        "tooling-version: '0.4.4'"
+        "tooling-version: '0.5.1'"
         in (project / ".github/workflows/validate.yml").read_text()
     )
 
@@ -151,12 +151,14 @@ raise SystemExit(main(["plugin", "--help"]))
     assert "Traceback" not in result.stderr
 
 
-@pytest.mark.parametrize("version", ["0.0.1", "0.3.99", "0.4.0", "0.4.2"])
+@pytest.mark.parametrize(
+    "version", ["0.0.1", "0.3.99", "0.4.0", "0.4.2", "0.4.3", "0.4.99"]
+)
 def test_tooling_releases_before_plugin_commands_are_rejected(tmp_path, version):
     project = tmp_path / "project"
     init_project(project, identity="ci-demo", license_identifier="MIT")
     before = {p: p.read_bytes() for p in project.rglob("*") if p.is_file()}
-    with pytest.raises(ValueError, match=r"openstudio-si>=0\.4\.3"):
+    with pytest.raises(ValueError, match=r"openstudio-si>=0\.5\.0"):
         configure_ci(project, workflow_ref="1" * 40, tooling_version=version)
     assert before == {p: p.read_bytes() for p in project.rglob("*") if p.is_file()}
 

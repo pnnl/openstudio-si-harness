@@ -2,14 +2,14 @@
 
 import ast
 import hashlib
-from importlib.resources import files
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+from importlib.resources import files
+from pathlib import Path
 
 import pytest
 import yaml
@@ -63,7 +63,13 @@ def run_script(project, name, *args, env=None):
             env["GITHUB_SHA"],
         ]
     return subprocess.run(
-        command, cwd=project.parent, env=env, capture_output=True, text=True, timeout=30
+        command,
+        check=False,
+        cwd=project.parent,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
 
 
@@ -93,7 +99,7 @@ def test_generated_project_is_relocatable_and_exports(tmp_path, with_mcp):
         data["manifest"]["owner"]["maintainers"][0]["contact"]
         == "researcher@example.org"
     )
-    assert data["inventory"] == dict(skill_count=1, mcp_server_count=int(with_mcp))
+    assert data["inventory"] == {"skill_count": 1, "mcp_server_count": int(with_mcp)}
     pyproject = tomllib.loads((project / "pyproject.toml").read_text())
     assert pyproject["project"]["dynamic"] == ["version"]
     assert "optional-dependencies" not in pyproject["project"]
@@ -202,14 +208,22 @@ def test_installed_console_init_command(tmp_path):
         "Developer",
     ]
     preview = subprocess.run(
-        command + ["--dry-run"], cwd=tmp_path, capture_output=True, text=True
+        command + ["--dry-run"],
+        check=False,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
     )
     assert preview.returncode == 0, preview.stderr
     assert not target.exists()
-    generated = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
+    generated = subprocess.run(
+        command, check=False, cwd=tmp_path, capture_output=True, text=True
+    )
     assert generated.returncode == 0, generated.stderr
     assert json.loads(generated.stdout)["inventory"]["mcp_server_count"] == 1
-    collision = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True)
+    collision = subprocess.run(
+        command, check=False, cwd=tmp_path, capture_output=True, text=True
+    )
     assert collision.returncode == 1 and "never overwritten" in collision.stderr
 
 
@@ -217,24 +231,25 @@ def test_mcp_starter_initialization_discovery_and_tool_call(tmp_path):
     project = tmp_path / "mcp"
     init_project(project, identity="mcp-demo", with_mcp=True)
     requests = [
-        dict(
-            jsonrpc="2.0",
-            id=1,
-            method="initialize",
-            params={"protocolVersion": "2024-11-05"},
-        ),
-        dict(jsonrpc="2.0", method="notifications/initialized"),
-        dict(jsonrpc="2.0", id=2, method="tools/list"),
-        dict(
-            jsonrpc="2.0",
-            id=3,
-            method="tools/call",
-            params={"name": "plugin_info", "arguments": {}},
-        ),
-        dict(jsonrpc="2.0", id=4, method="unknown"),
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05"},
+        },
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "plugin_info", "arguments": {}},
+        },
+        {"jsonrpc": "2.0", "id": 4, "method": "unknown"},
     ]
     result = subprocess.run(
         [sys.executable, "-I", str(project / "src/si_mcp_demo/server.py")],
+        check=False,
         input="".join(json.dumps(r) + "\n" for r in requests),
         capture_output=True,
         text=True,

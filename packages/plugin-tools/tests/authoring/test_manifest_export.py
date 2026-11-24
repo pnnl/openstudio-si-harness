@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from openstudio_si_harness.compatibility import satisfies, semver
 from openstudio_si_harness.export import export_plugin
 from openstudio_si_harness.manifest import load_plugin
@@ -224,21 +223,21 @@ def test_filtered_resources_external_provider_and_roundtrip(source, tmp_path):
         (root / name / "resource").write_text(name)
     data["package"] = {"include": ["custom"]}
     data["dependencies"] = [
-        dict(
-            id="core",
-            kind="plugin",
-            target="openstudio-si",
-            required=True,
-            probe="metadata",
-        ),
-        dict(
-            id="core-mcp",
-            kind="mcp-server",
-            target="openstudio_si",
-            provider="core",
-            required=True,
-            probe="mcp-tools",
-        ),
+        {
+            "id": "core",
+            "kind": "plugin",
+            "target": "openstudio-si",
+            "required": True,
+            "probe": "metadata",
+        },
+        {
+            "id": "core-mcp",
+            "kind": "mcp-server",
+            "target": "openstudio_si",
+            "provider": "core",
+            "required": True,
+            "probe": "mcp-tools",
+        },
     ]
     data["capabilities"][0]["requires"] = ["core", "core-mcp"]
     (root / "openstudio-si-plugin.yaml").write_text(yaml.safe_dump(data))
@@ -299,14 +298,17 @@ def test_nonportable_mcp_configuration_rejected(source, entry):
 
 def test_desktop_launcher_without_path_and_secret_forwarding(source, tmp_path):
     import subprocess
+
     from openstudio_si_harness.mcp import host_servers
 
     executable = tmp_path / "installed server"
     executable.write_text('#!/bin/sh\nprintf "%s:%s" "$TEST_KEY" "$1"\n')
     executable.chmod(0o755)
-    entry = dict(
-        command="unavailable-server", args=["stdio"], env={"TEST_KEY": "${TEST_SECRET}"}
-    )
+    entry = {
+        "command": "unavailable-server",
+        "args": ["stdio"],
+        "env": {"TEST_KEY": "${TEST_SECRET}"},
+    }
     (source[0] / ".mcp.json").write_text(json.dumps({"mcpServers": {"test": entry}}))
     load_plugin(source[0])
     server = host_servers({"test": entry})["test"]
@@ -317,7 +319,11 @@ def test_desktop_launcher_without_path_and_secret_forwarding(source, tmp_path):
         "OPENSTUDIO_SI_TEST_COMMAND": str(executable),
     }
     result = subprocess.run(
-        [server["command"], *server["args"]], env=env, capture_output=True, text=True
+        [server["command"], *server["args"]],
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == "synthetic-value:stdio"
@@ -328,20 +334,28 @@ def test_desktop_launcher_without_path_and_secret_forwarding(source, tmp_path):
     installed.chmod(0o755)
     del env["OPENSTUDIO_SI_TEST_COMMAND"]
     result = subprocess.run(
-        [server["command"], *server["args"]], env=env, capture_output=True, text=True
+        [server["command"], *server["args"]],
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0 and result.stdout == "synthetic-value:stdio"
     del env["TEST_SECRET"]
     result = subprocess.run(
-        [server["command"], *server["args"]], env=env, capture_output=True, text=True
+        [server["command"], *server["args"]],
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode != 0 and "TEST_SECRET" in result.stderr
 
 
 def test_installed_cli_outside_checkout(source, tmp_path):
+    import importlib.metadata
     import subprocess
     import sys
-    import importlib.metadata
 
     # The suite must import the wheel, not a source-tree sys.path override.
     import openstudio_si_harness
@@ -356,6 +370,7 @@ def test_installed_cli_outside_checkout(source, tmp_path):
     executable = Path(sys.executable).with_name("openstudio-si")
     result = subprocess.run(
         [str(executable), "plugin", "--help"],
+        check=False,
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -368,12 +383,17 @@ def test_installed_cli_outside_checkout(source, tmp_path):
         (["plugin", "unknown"], 2),
     ]:
         result = subprocess.run(
-            command + arguments, cwd=tmp_path, capture_output=True, text=True
+            command + arguments,
+            check=False,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == expected, result.stderr
     result = subprocess.run(
         command
         + ["plugin", "export", str(source[0]), "--output", str(tmp_path / "cli-out")],
+        check=False,
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -382,6 +402,7 @@ def test_installed_cli_outside_checkout(source, tmp_path):
     exported = json.loads(result.stdout)["packages"]["codex"]
     result = subprocess.run(
         command + ["plugin", "validate", exported],
+        check=False,
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -415,13 +436,13 @@ def test_unfinalized_manifest_contracts_are_rejected(source, change):
         data["schema_version"] = "1.0"
     else:
         data["dependencies"] = [
-            dict(
-                id="interface",
-                kind="core-interface",
-                target="core",
-                required=True,
-                probe="metadata",
-            )
+            {
+                "id": "interface",
+                "kind": "core-interface",
+                "target": "core",
+                "required": True,
+                "probe": "metadata",
+            }
         ]
     (root / "openstudio-si-plugin.yaml").write_text(yaml.safe_dump(data))
     with pytest.raises(ValueError):
@@ -443,7 +464,7 @@ def test_npm_single_bound_regressions(version, expression, expected):
 
 
 def test_asset_build_directory_names_are_preserved(source, tmp_path):
-    root, data = source
+    root, _data = source
     for name in ("build", "dist", "venv"):
         asset = root / "skills/lookup/assets" / name / "app.js"
         asset.parent.mkdir(parents=True)
@@ -521,8 +542,8 @@ def test_removing_descriptor_cannot_downgrade_export_to_source(source, tmp_path)
 def test_mcp_export_declares_platforms_and_rejects_windows(
     source, tmp_path, monkeypatch
 ):
-    from openstudio_si_harness.export import DESCRIPTOR
     import openstudio_si_harness.export as exporter
+    from openstudio_si_harness.export import DESCRIPTOR
 
     root, _ = source
     (root / ".mcp.json").write_text(
@@ -555,7 +576,9 @@ def test_released_doctor_gate_rejects_untrusted_baselines(tmp_path, failure):
         if failure == "version"
         else "0" * 64
     )
-    script = Path(__file__).with_name("check_released_core_doctor.py")
+    script = (
+        Path(__file__).resolve().parents[2] / "checks/check_released_core_doctor.py"
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -570,6 +593,7 @@ def test_released_doctor_gate_rejects_untrusted_baselines(tmp_path, failure):
             "--report",
             str(tmp_path / "report.json"),
         ],
+        check=False,
         capture_output=True,
         text=True,
     )

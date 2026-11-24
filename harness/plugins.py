@@ -28,8 +28,8 @@ HVAC_RELEASE = json.loads(
 )
 HVAC_VERSION = HVAC_RELEASE["version"]
 HVAC_CORE_RANGE = f">={HVAC_RELEASE['core_min']} <{HVAC_RELEASE['core_before']}"
-HVAC_FORWARDING_RELEASE = "0.4.3"
-HVAC_FORWARDING_BEFORE = "0.5.0"
+HVAC_FORWARDING_RELEASE = "0.5.0"
+HVAC_FORWARDING_BEFORE = "0.6.0"
 PLUGIN_DESCRIPTOR = "openstudio-si-plugin.json"
 HVAC_SKILLS = frozenset(
     {

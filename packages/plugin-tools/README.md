@@ -7,9 +7,9 @@ packaging do not import it or require a native OpenStudio CLI. Budget roughly
 370 MB for the environment; size varies with platform and dependencies. The
 pinned OpenStudio 3.11.0 package currently has no Windows Python 3.14 wheel;
 use a supported Python/platform combination (CI uses Linux/Python 3.13).
-No separate PyPI project or GitHub tooling
-asset release is needed. This change is under review on `codex/plugin-tools-step-2`;
-it must ship in a new `openstudio-si` release before labs can install it from PyPI.
+No separate PyPI project or GitHub tooling asset release is needed. The first
+plugin-development release is `openstudio-si` 0.5.0. Until it is published, install
+a wheel built from this checkout using the instructions below.
 
 ```bash
 python -m pip install "openstudio-si[plugin-dev]"
@@ -29,9 +29,23 @@ remains passive. Profiles declare the host, Python/cwd/PATH and named environmen
 references. Terminal state is not host evidence. Use `--host codex`
 or `--host claude` to select host packages and bind source directories to a host.
 Legacy core/HVAC dependencies point to `openstudio-si doctor` and report unknown.
+Dataset identity additionally requires an explicitly trusted command binding and
+`allow_dataset_metadata`; it records package/data/cache identities without service
+startup or cache creation. The BESD implementation is staged for review and must
+be released before contributors can require the new operation.
 See the [readiness contract](../../docs/PLUGIN_READINESS.md) for selection,
 cache discovery, evidence and exit codes. Existing core/HVAC doctor behavior is
-unchanged; MCP/dataset probes, host enablement and BESD extraction remain later step-D work.
+unchanged. Temporary MCP initialize/tools probes additionally require per-binding
+`allow_mcp_initialize: true`, issue no tool calls, and close their servers afterward.
+Host enablement and BESD extraction remain later step-D work. BESD dataset
+identity binds to its MCP declaration through `dataset_mcp`, sharing server
+arguments, environment mapping and executable override. Missing caches are
+unknown; build provenance distinguishes verified-current, stale and legacy caches.
+MCP inventories default to a 1 MiB budget and accept unversioned SDK servers unless
+a version range is required. Reports show the resolved executable and HOME presence;
+forward HOME explicitly for launchers that need it and include system utilities in
+the profile PATH when using shell wrappers. See the readiness guide for limits and
+desktop fallback search behavior.
 
 For an unpublished checkout, build from the repository root and install that wheel:
 
@@ -47,7 +61,7 @@ accepted. Skills live in `skills/<name>/SKILL.md`.
 Counts are discovered. Repository metadata is optional. `HARNESS_API_VERSION`
 identifies the supported manifest/API contract independently of tool releases.
 Python distribution dependencies use PEP 440. Other ranges use full SemVer
-comparators separated by spaces, such as `>=0.4.3 <0.5.0`. Supported operators
+comparators separated by spaces, such as `>=0.5.0 <0.6.0`. Supported operators
 are `>=`, `<=`, `>`, `<`, `=` and bare exact versions. Commas, `==`, `!=`,
 caret and wildcard forms are rejected. npm prerelease exclusion applies.
 Version parsing uses `semantic-version>=2.10,<3`. Public comparator matching
@@ -115,7 +129,7 @@ openstudio-si plugin configure-ci ./my-plugin \
 ```
 
 The version defaults to the installed `openstudio-si` version. Releases older
-than 0.4.3 are rejected; CI checks that all required commands actually load
+than 0.5.0 are rejected; CI checks that all required commands actually load
 before installing host CLIs. CI installs
 `openstudio-si[plugin-dev]==<version>` directly from PyPI with binary wheels in
 a clean environment. Labs do not download a separate tool asset or supply a
@@ -185,7 +199,7 @@ dependencies:
   - id: core
     kind: plugin
     target: openstudio-si
-    version_spec: ">=0.4.3 <0.5.0"
+    version_spec: ">=0.5.0 <0.6.0"
     required: true
     probe: metadata
   - id: core-mcp
@@ -230,7 +244,7 @@ No test modifies sys.path to import the source package.
 
 ```bash
 python -I -m pytest /path/to/harness/packages/plugin-tools/tests --confcutdir=/path/to/harness/packages/plugin-tools/tests -q
-python -I /path/to/harness/packages/plugin-tools/tests/validate_hosts.py
+python -I /path/to/harness/packages/plugin-tools/checks/validate_hosts.py
 ```
 
 The second command generates the starter with and without the MCP example, checks their exported host
@@ -263,7 +277,7 @@ injection is used. It compares default/matching-plugin doctor observations befor
 and after adding third-party cache entries. Release 0.4.2 predates the HVAC split.
 
 ```bash
-python -I packages/plugin-tools/tests/check_released_core_doctor.py \
+python -I packages/plugin-tools/checks/check_released_core_doctor.py \
   --core-wheel /path/to/openstudio_si-0.4.2-py3-none-any.whl \
   --sha256 c81b9bae11269c4c09f4bb4c9b538934888e234abf5b5ac7d3b41d02d3c4caa0 \
   --report /tmp/released-core-doctor.json
@@ -294,3 +308,10 @@ current limitations. Tests exercise the implementation with local stubs; no CI
 workflow invokes actual agents/judges. Generic descriptor-verified host exports
 are supported; production core/HVAC export bindings remain separate. No paid
 model runs were used to verify this implementation.
+
+## Test organization
+
+The maintained suite is grouped under `tests/authoring`, `tests/evaluation` and
+`tests/readiness`, with shared builders/fixtures under `tests/support`. See
+[the test guide](tests/README.md) for installed-wheel and focused commands.
+Host-loader and isolated released-core conformance scripts live in `checks/`.

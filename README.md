@@ -1,14 +1,17 @@
 # OpenStudio SI Harness
 
+Release preparation: **0.5.0**, with optional plugin development/evaluation tools
+and independently versioned specialist plugins.
+
 OpenStudio SI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for SI-assisted building-energy modeling.
 
-The SI rename uses package version **0.4.2**, MCP plugin/runtime contract **6.0**,
-and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
+The SI rename began at **0.4.2**. Release **0.5.0** retains MCP plugin/runtime
+contract **6.0** and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
 See the [release guide](docs/RELEASE.md) for publication and cutover steps.
 
 Terminal and plant equipment coverage through phases 11–13 is reviewed.
-See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
+See the [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation) for scope and limits.
 
 ## Current Capabilities
 
@@ -95,7 +98,7 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
   and ventilation before simulation. Plans identify retained fan classes and VRP
   sizing dependencies; preserved inputs do not promise unchanged calculated OA.
   Reheat conversions remain separate. See the
-  [release review summary](docs/reviews/SUMMARY.md).
+  [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation).
 - The VAV creator's `prototype_pvav_v1` profile adds packaged VAV with gas
   central heat, approved two-speed DX cooling, and electric terminal reheat.
   It uses the same reviewed preflight and saved-model checks as VAV reheat.
@@ -214,7 +217,7 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
   enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. Shared guides
   and schemas live once under `sdk/`; exported skill links stay inside the plugin.
   Markdown participates in bundle integrity, so documentation edits require a
-  matching full export. See the [release review summary](docs/reviews/SUMMARY.md).
+  matching full export. See the [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation).
   Earlier 0.4.1 exports omitted some declared HVAC guides; regenerate from the
   updated harness and refresh the complete plugin to repair those links.
   This package pins OpenStudio 3.11.0 consistently in its dependency,
@@ -310,8 +313,8 @@ the connected server before modeling. PNNL’s foundational MCP advertises
 `openstudio-si-mcp` and uses the host connection name `openstudio_si`.
 
 Install HVAC Modeler from the same marketplace alongside OpenStudio SI core
-`>=0.4.3 <0.5.0`. When upgrading from `0.4.2`, enable HVAC Modeler explicitly
-and reload the host. Claude Code's `0.4.x` split releases forward the old
+`>=0.5.0 <0.6.0`. When upgrading from `0.4.2`, enable HVAC Modeler explicitly
+and reload the host. Claude Code's `0.5.x` split releases forward the old
 namespaced skills. In Codex, select the same skill name from HVAC Modeler.
 Keep saved sessions and recheck any saved plan before applying. Load
 `hvac-modeler` for an HVAC task, or ask the agent which plugins are ready.
@@ -471,7 +474,7 @@ MCP server code stays in `openstudio_si_mcp`.
 
 For a plain-language overview of the proposed multi-lab framework, commands,
 testing, and contribution journey, see the
-[team review draft](docs/FRAMEWORK_TEAM_REVIEW.md).
+[plugin development plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
 
 Plugin validation/export and the step-B project generator are implemented in
 [packages/plugin-tools](packages/plugin-tools/README.md). The optional
@@ -507,5 +510,13 @@ CI tests the framework using local stubs. See the
 Generic plugin metadata readiness is available through `openstudio-si plugin doctor`:
 it reports descriptions, dependencies and capability prerequisites without starting
 services. Explicit local runtime profiles add bounded Python/configuration/command
-checks with `--check-runtime`; live MCP/dataset and host enablement evidence remain
-unknown. See the [readiness contract](docs/PLUGIN_READINESS.md).
+checks with `--check-runtime`. Separately authorized temporary MCP probes check
+initialization and tool inventories without calling tools. Persistent host
+connections and host enablement remain unknown. A separately authorized dataset
+metadata command records package, bundled-data and selected-cache identities
+without starting the service or creating its cache. MCP-linked dataset probes reuse
+the server declaration, environment and override. Missing caches are unknown;
+cache build records distinguish current packaged data from stale/legacy caches.
+The BESD provider is staged in its separate development repository; the
+skill/registration transfer remains the next checkpoint. See the
+[readiness contract](docs/PLUGIN_READINESS.md).

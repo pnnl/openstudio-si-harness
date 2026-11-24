@@ -77,7 +77,7 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/hosts/node_modules
         working-directory: ${{ runner.temp }}
-        run: python -I "$GITHUB_WORKSPACE/packages/plugin-tools/tests/validate_hosts.py"
+        run: python -I "$GITHUB_WORKSPACE/packages/plugin-tools/checks/validate_hosts.py"
 
   released-core-doctor:
     name: Released core 0.4.2 doctor isolation
@@ -106,7 +106,7 @@ jobs:
       - name: Install current tooling for the controller (baseline gets its own venv)
         run: python -m pip install ".[plugin-dev]"
       - name: Compare released doctor with third-party plugins present
-        run: python -I packages/plugin-tools/tests/check_released_core_doctor.py --core-wheel "$RUNNER_TEMP/openstudio_si-0.4.2-py3-none-any.whl" --sha256 "$CORE_BASELINE_SHA256" --report "$RUNNER_TEMP/released-core-doctor.json"
+        run: python -I packages/plugin-tools/checks/check_released_core_doctor.py --core-wheel "$RUNNER_TEMP/openstudio_si-0.4.2-py3-none-any.whl" --sha256 "$CORE_BASELINE_SHA256" --report "$RUNNER_TEMP/released-core-doctor.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -10,10 +10,9 @@ import pytest
 import yaml
 from openstudio_si_harness.cli import main
 from openstudio_si_harness.runtime import RuntimeSelection
-from test_readiness import dependency, plugin
-from test_runtime_readiness import probe, profile, tool
 
-pytest_plugins = ["test_runtime_readiness"]
+from ..support.plugins import dependency, plugin
+from ..support.runtime import probe, profile, tool
 
 
 def edit_profile(path, change):

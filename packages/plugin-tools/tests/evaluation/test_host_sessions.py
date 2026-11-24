@@ -5,7 +5,8 @@ import sys
 
 import pytest
 from openstudio_si_harness.evaluation.hosts import normalize
-from test_evaluation import fake_codex, fake_judge_response, judged_case, run_fixture
+
+from .test_runner import fake_codex, fake_judge_response, judged_case, run_fixture
 
 
 def host(tmp_path, body):

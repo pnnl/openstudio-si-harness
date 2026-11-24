@@ -133,18 +133,18 @@ def test_installed_tooling_preflight_detects_missing_commands(tmp_path):
         text=True,
     )
     site = Path(json.loads(paths.stdout)["purelib"])
-    metadata = site / "openstudio_si-0.4.3.dist-info"
+    metadata = site / "openstudio_si-0.5.0.dist-info"
     metadata.mkdir(parents=True)
-    (metadata / "METADATA").write_text("Name: openstudio-si\nVersion: 0.4.3\n")
+    (metadata / "METADATA").write_text("Name: openstudio-si\nVersion: 0.5.0\n")
     command = python.with_name("openstudio-si")
     command.write_text(
         f"#!{python}\nimport os,sys\nsys.exit(2 if os.environ.get('MISSING_ACTION') == sys.argv[2] else 0)\n"
     )
     command.chmod(0o755)
     for version, missing, message in [
-        ("0.4.3", "", ""),
-        ("0.4.2", "", "requires the selected openstudio-si>=0.4.3"),
-        ("0.4.3", "export", "lacks required plugin command: export"),
+        ("0.5.0", "", ""),
+        ("0.4.2", "", "requires the selected openstudio-si>=0.5.0"),
+        ("0.5.0", "export", "lacks required plugin command: export"),
     ]:
         result = subprocess.run(
             [str(python), "-I", "-c", script],

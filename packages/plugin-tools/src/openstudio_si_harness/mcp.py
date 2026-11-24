@@ -4,11 +4,43 @@ Source configuration has no host-specific root substitution. Bundled executable
 MCP servers require a future host binding and are rejected rather than guessed.
 """
 
+import os
 import re
 import shlex
+import shutil
+from pathlib import Path
 
 ENV_REF = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
 COMMAND = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*")
+HOME_COMMAND_DIRS = (".local/bin", ".cargo/bin")
+SYSTEM_COMMAND_DIRS = ("/opt/homebrew/bin", "/usr/local/bin")
+
+
+def resolve_server_command(name, entry, env, cwd):
+    """Mirror the desktop launcher's search, using only the supplied environment."""
+    override = env.get(override_variable(name), "")
+    if override:
+        if not Path(override).is_absolute():
+            return None, "override", "mcp_command_override_invalid"
+        candidates = [(override, "override")]
+    else:
+        found = shutil.which(entry["command"], path=env.get("PATH", ""))
+        candidates = [(found, "profile_path")] if found else []
+        candidates.extend(
+            (f'{env.get("HOME", "")}/{suffix}/{entry["command"]}', "desktop_fallback")
+            for suffix in HOME_COMMAND_DIRS
+        )
+        candidates.extend(
+            (str(Path(folder) / entry["command"]), "desktop_fallback")
+            for folder in SYSTEM_COMMAND_DIRS
+        )
+    for value, origin in candidates:
+        path = Path(value)
+        if not path.is_absolute():
+            path = Path(cwd) / path
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path), origin, None
+    return None, "override" if override else None, "mcp_server_command_not_found"
 
 
 def override_variable(name: str) -> str:
@@ -62,7 +94,12 @@ def host_servers(servers: dict) -> dict:
             "else",
             f"  executable=$(command -v {shlex.quote(entry['command'])} || true)",
             '  if [ -z "$executable" ]; then',
-            '    for directory in "${HOME:-}/.local/bin" "${HOME:-}/.cargo/bin" /opt/homebrew/bin /usr/local/bin; do',
+            "    for directory in "
+            + " ".join(
+                [f'"${{HOME:-}}/{suffix}"' for suffix in HOME_COMMAND_DIRS]
+                + list(SYSTEM_COMMAND_DIRS)
+            )
+            + "; do",
             f'      if [ -x "$directory"/{shlex.quote(entry["command"])} ]; then executable="$directory"/{shlex.quote(entry["command"])}; break; fi',
             "    done",
             "  fi",

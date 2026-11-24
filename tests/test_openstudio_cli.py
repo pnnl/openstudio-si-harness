@@ -699,7 +699,7 @@ def test_cli_export_paired_marketplace_includes_provenance(
     }
     assert plugin_readiness(checks, None)[HVAC_PLUGIN_ID]["status"] == "not_detected"
     assert plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["ready"]
-    cached = tmp_path / "codex-state/plugins/cache/test-market/openstudio-si-hvac/0.1.0"
+    cached = tmp_path / f"codex-state/plugins/cache/test-market/openstudio-si-hvac/{HVAC_VERSION}"
     cached.parent.mkdir(parents=True)
     cached.symlink_to(specialist, target_is_directory=True)
     assert (

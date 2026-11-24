@@ -1,4 +1,4 @@
-"""Round 4 review regressions: model selection, holdout detection and judge controls."""
+"""Model selection, holdout detection and judge controls."""
 
 import json
 
@@ -62,8 +62,9 @@ def local_evaluation_environment(monkeypatch):
 def test_parent_grep_reference_echo_blocks_judging(tmp_path, monkeypatch):
     from openstudio_si_harness.evaluation import judge
     from openstudio_si_harness.evaluation.runner import rejudge
-    from test_evaluation import fake_judge_response, judged_case, run_fixture
-    from test_evaluation_regressions import host
+
+    from .test_host_sessions import host
+    from .test_runner import fake_judge_response, judged_case, run_fixture
 
     body = f"""
 parent=pathlib.Path({str(tmp_path)!r})
@@ -104,6 +105,7 @@ sys.exit(0)
     )
     assert not calls and final["status"] == "failed"
     assert final["sessions"][0]["judge"]["status"] == "skipped"
+    assert "score" not in final["sessions"][0]["judge"]
 
 
 def test_content_audit_ignores_short_facts_and_checks_hashes():
@@ -113,11 +115,13 @@ def test_content_audit_ignores_short_facts_and_checks_hashes():
     trace = [
         {"id": "trace:0", "result": {"text": reference.upper().replace(" ", "\n")}}
     ]
-    assert holdout_content(trace, "", [reference]) == ["trace:0:holdout_content"]
+    assert holdout_content(trace, "", [reference]) == [
+        {"location": "trace:0:holdout_content", "blocking": True}
+    ]
     assert not holdout_content([], "The value is 42.", ["42"])
     hash_value = "a" * 64
     assert holdout_content([], f"file hash: {hash_value}", [], [hash_value]) == [
-        "answer:holdout_content"
+        {"location": "answer:holdout_content", "blocking": False}
     ]
 
 
@@ -125,7 +129,8 @@ def test_agent_proxy_passthrough_and_mcp_shared_environment_are_explicit(
     tmp_path, monkeypatch
 ):
     from openstudio_si_harness.evaluation.hosts import capture
-    from test_evaluation_regressions import host
+
+    from .test_host_sessions import host
 
     monkeypatch.setenv("SI_EVAL_AGENT_KEY", "fake-local-agent-key")
     monkeypatch.setenv("GITHUB_TOKEN", "fake-server-credential")
@@ -194,8 +199,8 @@ def test_judge_worker_preserves_network_settings_without_putting_them_in_payload
 
 
 def test_startup_skills_inventory_is_retained(tmp_path, monkeypatch):
-    from test_evaluation import run_fixture
-    from test_evaluation_regressions import host
+    from .test_host_sessions import host
+    from .test_runner import run_fixture
 
     agent = host(
         tmp_path,
@@ -304,7 +309,7 @@ def test_template_calibration_canary_is_valid_and_opt_in(tmp_path):
 
 
 def test_case_edit_still_requires_reexport_with_explicit_error(tmp_path, monkeypatch):
-    from test_evaluation import run_fixture
+    from .test_runner import run_fixture
 
     def edit(project, source, export, config):
         path = next((source / "evals/cases").glob("*.json"))
@@ -321,8 +326,8 @@ def test_case_edit_still_requires_reexport_with_explicit_error(tmp_path, monkeyp
 def test_measure_intermediates_and_selected_saved_model_end_to_end(
     tmp_path, monkeypatch
 ):
-    from test_evaluation import run_fixture
-    from test_evaluation_regressions import host
+    from .test_host_sessions import host
+    from .test_runner import run_fixture
 
     body = """
 for name in ['.openstudio_si_mcp_workspace/measure/in.osm','.openstudio_si_mcp_workspace/measure/out.osm','output.osm']:

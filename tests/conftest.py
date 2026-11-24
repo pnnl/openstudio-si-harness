@@ -39,7 +39,7 @@ SLOW_MODULES = frozenset(
         "test_pump_replacement.py",
         "test_sdk_followup_regressions.py",
         "test_sdk_import_closure.py",
-        "test_sdk_review_regressions.py",
+        "test_sdk_regressions.py",
         "test_sdk_round3_regressions.py",
         "test_sdk_round4_regressions.py",
         "test_shared_sdk_packaging.py",
