@@ -1,14 +1,17 @@
 # OpenStudio SI Harness
 
+Release preparation: **0.5.0**, with optional plugin development/evaluation tools
+and independently versioned specialist plugins.
+
 OpenStudio SI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for SI-assisted building-energy modeling.
 
-The SI rename uses package version **0.4.2**, MCP plugin/runtime contract **6.0**,
-and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
+The SI rename began at **0.4.2**. Release **0.5.0** retains MCP plugin/runtime
+contract **6.0** and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
 See the [release guide](docs/RELEASE.md) for publication and cutover steps.
 
 Terminal and plant equipment coverage through phases 11–13 is reviewed.
-See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
+See the [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation) for scope and limits.
 
 ## Current Capabilities
 
@@ -18,8 +21,11 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
 - OpenStudio MCP server for model lifecycle, simulation, results, SDK lookup,
   runtime storage, MCP-backed blackboard workflow state, and downloadable
   self-contained OSM geometry viewers.
-- Claude Code plugin export.
-- Codex plugin export.
+- Codex and Claude Code marketplace exports with two installable plugins. OpenStudio
+  SI owns provider routing, sessions, model lineage, simulation, results, and
+  artifacts. OpenStudio SI HVAC Modeler (`openstudio-si-hvac`) owns the reviewed
+  HVAC capabilities, including VAV reheat, packaged VAV, prototype CAV, plant
+  creation, topology, sizing, and air-side and plant equipment edits.
 - `openstudio-hvac-visualizer` produces read-only local JSON, Mermaid and Markdown
   equipment views of air/plant connections, VRF membership and every thermal zone.
   Zones are green, air-side equipment blue and water-side equipment orange;
@@ -92,7 +98,7 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
   and ventilation before simulation. Plans identify retained fan classes and VRP
   sizing dependencies; preserved inputs do not promise unchanged calculated OA.
   Reheat conversions remain separate. See the
-  [release review summary](docs/reviews/SUMMARY.md).
+  [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation).
 - The VAV creator's `prototype_pvav_v1` profile adds packaged VAV with gas
   central heat, approved two-speed DX cooling, and electric terminal reheat.
   It uses the same reviewed preflight and saved-model checks as VAV reheat.
@@ -211,7 +217,7 @@ See the [release review summary](docs/reviews/SUMMARY.md) for scope and limits.
   enforces a 1,114,112-byte (1 MiB + 64 KiB) SDK-resource budget. Shared guides
   and schemas live once under `sdk/`; exported skill links stay inside the plugin.
   Markdown participates in bundle integrity, so documentation edits require a
-  matching full export. See the [release review summary](docs/reviews/SUMMARY.md).
+  matching full export. See the [implementation summary](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md#consolidated-implementation-and-verification-summary--050-preparation).
   Earlier 0.4.1 exports omitted some declared HVAC guides; regenerate from the
   updated harness and refresh the complete plugin to repair those links.
   This package pins OpenStudio 3.11.0 consistently in its dependency,
@@ -305,6 +311,24 @@ are reported separately and do not block core readiness. NLR discovery accepts
 configured; verify NLR status/version through
 the connected server before modeling. PNNL’s foundational MCP advertises
 `openstudio-si-mcp` and uses the host connection name `openstudio_si`.
+
+Install HVAC Modeler from the same marketplace alongside OpenStudio SI core
+`>=0.5.0 <0.6.0`. When upgrading from `0.4.2`, enable HVAC Modeler explicitly
+and reload the host. Claude Code's `0.5.x` split releases forward the old
+namespaced skills. In Codex, select the same skill name from HVAC Modeler.
+Keep saved sessions and recheck any saved plan before applying. Load
+`hvac-modeler` for an HVAC task, or ask the agent which plugins are ready.
+`openstudio-si doctor --json` lists each known plugin and its description.
+Run the host plugin's doctor helper for a check that includes its contract.
+For an active HVAC installation, pass its plugin root to the helper with
+`--plugin-dir <path-containing-skills-and-sdk>`. The check verifies the
+package, the core contract, and the OpenStudio CLI version. The host's skill
+list establishes whether the plugin is enabled in that session. Doctor reports a cached
+package as `cached_unverified` until the active host supplies its skill path.
+For local topology inspection and bundled SDK edits, the helper's
+`--core-metadata` mode reads the active core's manifest and contract from disk.
+Each selected capability still performs its own OpenStudio preflight.
+Use the connected core runtime for simulation and results.
 
 The base package is the recommended install for Claude Code, Codex, and other
 marketplace-style host integrations. It intentionally does not install
@@ -441,3 +465,58 @@ The shared loader also rejects missing air- or plant-loop availability lists.
 Their skill-local `prepare_model.py` creates a stable reported working copy, then
 the workflow repeats inventory/preflight with all exact checks intact. See the
 [increment A contract and local verification commands](docs/SDK_INTEGRATION_SUMMARY.md#a--deterministic-inputs-and-explicit-preparation).
+
+## Plugin developer tooling
+
+The public `openstudio-si` command routes through `openstudio_si/cli.py`.
+This shared entry point loads developer tools or the runtime CLI as needed;
+MCP server code stays in `openstudio_si_mcp`.
+
+For a plain-language overview of the proposed multi-lab framework, commands,
+testing, and contribution journey, see the
+[plugin development plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
+
+Plugin validation/export and the step-B project generator are implemented in
+[packages/plugin-tools](packages/plugin-tools/README.md). The optional
+`openstudio-si[plugin-dev]` installation validates plugin identity and dependencies,
+generates local plugin development projects with optional MCP examples, discovers capabilities, and
+exports Codex and Claude Code packages.
+It supports local plugin sources before a GitHub repository exists, filters
+package resources, and verifies exported file hashes. The manifest remains
+draft schema 0.1. The released core/HVAC IDs remain owned by their existing
+exporters. Current MCP launchers support macOS and Linux installed commands.
+Start with `openstudio-si plugin init ./my-plugin --id my-plugin --license MIT`.
+Install with `pip install "openstudio-si[plugin-dev]"` after the release containing
+these tools is published; the SDK and runtime are included. Generation/export
+do not import the SDK or require a native OpenStudio CLI. Budget roughly 370 MB
+(platform dependent); Windows/Python 3.14 has no wheel for the pinned SDK. CI uses the packaged
+generator. New projects require an explicit license; configure-ci activates thin
+pinned workflows using a published openstudio-si version. Lab publication targets
+the shared marketplace through a scoped PR, with no lab PyPI release. See the
+[tooling commands](packages/plugin-tools/README.md) and
+[implementation plan](docs/PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md).
+
+
+DeepEval-based local agent evaluation is available for step-C review through
+`pip install "openstudio-si[eval]"` and `openstudio-si eval run`, `judge`, and
+`report`. It captures real host traces and artifact evidence, keeping observable
+checks separate from advisory LLM scores. Limited reference text overlaps appear
+as review warnings beside scores; explicit evaluation-path access and substantial
+private reference content in tool results block judging.
+Actual model runs stay developer-run;
+CI tests the framework using local stubs. See the
+[evaluation guide](docs/PLUGIN_EVALUATION.md) for configuration and limitations.
+
+Generic plugin metadata readiness is available through `openstudio-si plugin doctor`:
+it reports descriptions, dependencies and capability prerequisites without starting
+services. Explicit local runtime profiles add bounded Python/configuration/command
+checks with `--check-runtime`. Separately authorized temporary MCP probes check
+initialization and tool inventories without calling tools. Persistent host
+connections and host enablement remain unknown. A separately authorized dataset
+metadata command records package, bundled-data and selected-cache identities
+without starting the service or creating its cache. MCP-linked dataset probes reuse
+the server declaration, environment and override. Missing caches are unknown;
+cache build records distinguish current packaged data from stale/legacy caches.
+The BESD provider is staged in its separate development repository; the
+skill/registration transfer remains the next checkpoint. See the
+[readiness contract](docs/PLUGIN_READINESS.md).

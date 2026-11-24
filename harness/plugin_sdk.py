@@ -74,7 +74,7 @@ def rewrite_reference_paths(content, aliases):
     )
 
 
-def launcher(entry, bundle_id):
+def launcher(entry, bundle_id, plugin_name="OpenStudio SI core"):
     # Fixed paths only. No environment lookup, source checkout or runtime import.
     return f'''"""Run this skill's entrypoint from the complete OpenStudio SI plugin."""
 import hashlib
@@ -95,14 +95,17 @@ try:
         if payload.is_symlink() or not payload.resolve().is_relative_to(library.resolve()) or hashlib.sha256(payload.read_bytes()).hexdigest() != expected:
             raise ValueError("SDK library file is missing or mismatched: " + relative)
 except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
-    print(json.dumps({{"ok": False, "ready": False, "status": "plugin_incomplete", "error": str(exc)[:400], "next_action": "Restore or reinstall the complete OpenStudio SI plugin, including sdk/; do not copy a skill alone."}}))
+    print(json.dumps({{"ok": False, "ready": False, "status": "plugin_incomplete", "error": str(exc)[:400], "next_action": "Restore or reinstall the complete {plugin_name} plugin, including sdk/; do not copy a skill alone."}}))
     raise SystemExit(2)
 sys.path.insert(0, str(library))
 runpy.run_path(str(library / {entry!r}), run_name="__main__")
 '''
 
 
-def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory):
+def plan_resources(
+    resources, workspace_root, plugin_dir, host, budget, factory, *,
+    plugin_version=None, plugin_name="OpenStudio SI core",
+):
     sources = workspace_root / "skills/sdk_scripts"
     declarations = [
         (r, [o for o in r["owners"] if host in o["hosts"]])
@@ -146,7 +149,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
                     raise ValueError("Skill entrypoints must be top-level SDK scripts")
                 exports.append(
                     factory(
-                        source, target, owner["skill"], launcher(source.name, bundle_id)
+                        source, target, owner["skill"], launcher(source.name, bundle_id, plugin_name)
                     )
                 )
                 entry_count += 1
@@ -157,7 +160,7 @@ def plan_resources(resources, workspace_root, plugin_dir, host, budget, factory)
         "layout_version": 1,
         "bundle_id": bundle_id,
         "files": hashes,
-        "plugin_version": package_version(),
+        "plugin_version": plugin_version or package_version(),
     }
     exports.append(
         factory(

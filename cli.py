@@ -14,11 +14,11 @@ from typing import Any
 from adapters.claude_code_adapter import ClaudeCodeAdapter
 from adapters.codex_adapter import CodexAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig
-from openstudio_si_mcp.runtime_config import (
-    openstudio_version_from_output,
-    resolve_openstudio_executable_with_source,
-    set_openstudio_path,
-    user_data_dir,
+from harness.plugins import (
+    HVAC_PLUGIN_ID,
+    PLUGIN_DESCRIPTOR,
+    plugin_readiness,
+    read_plugin_descriptor,
 )
 from openstudio_si_mcp.compatibility import (
     PLUGIN_CONTRACT_VERSION,
@@ -28,6 +28,12 @@ from openstudio_si_mcp.compatibility import (
 )
 from openstudio_si_mcp.runtime.learning_curation import curate_learning
 from openstudio_si_mcp.runtime.learning_store import LearningStore
+from openstudio_si_mcp.runtime_config import (
+    openstudio_version_from_output,
+    resolve_openstudio_executable_with_source,
+    set_openstudio_path,
+    user_data_dir,
+)
 
 try:
     import tomllib
@@ -513,7 +519,10 @@ def _doctor_diagnostics(checks: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def _doctor_payload(
-    *, plugin_version: str | None = None, plugin_contract_version: str | None = None
+    *,
+    plugin_version: str | None = None,
+    plugin_contract_version: str | None = None,
+    plugin_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Collect runtime readiness checks without mutating user models or projects."""
     harness_root = _default_root()
@@ -666,6 +675,7 @@ def _doctor_payload(
         checks["mcp_ready"] and checks["plugin_compatibility"].get("ok") is True
     )
     checks["ready"] = checks["core_ready"]
+    checks["plugins"] = plugin_readiness(checks, plugin_dir)
     checks["optional_capabilities"] = _optional_capabilities()
     checks["diagnostics"] = _doctor_diagnostics(checks)
     return checks
@@ -739,6 +749,11 @@ def _print_json_or_text(payload: dict[str, Any], *, as_json: bool) -> None:
         asset_message = payload.get("assets", {}).get("message")
         if asset_message:
             print(f"Runtime assets: {asset_message}")
+    if payload.get("plugins"):
+        print("\nOpenStudio SI plugins:")
+        for plugin in payload["plugins"].values():
+            print(f"- {plugin['name']} [{plugin['status']}]")
+            print(f"  {plugin['description']} {plugin['message']}")
     nlr = payload.get("optional_capabilities", {}).get("nlr_openstudio")
     if nlr:
         print("\nOptional capabilities:")
@@ -749,6 +764,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     payload = _doctor_payload(
         plugin_version=args.plugin_version,
         plugin_contract_version=args.plugin_contract_version,
+        plugin_dir=args.plugin_dir,
     )
     _print_json_or_text(payload, as_json=args.json)
     return 0 if payload["ready"] else 1
@@ -788,7 +804,7 @@ def _cmd_configure_openstudio(args: argparse.Namespace) -> int:
     path = args.path.expanduser().resolve()
     if not path.is_file() or not os.access(path, os.X_OK):
         print(
-            "OpenStudio path must be an executable file. " f"Received: {path}",
+            f"OpenStudio path must be an executable file. Received: {path}",
             file=sys.stderr,
         )
         return 2
@@ -922,6 +938,7 @@ def _cmd_export(args: argparse.Namespace) -> int:
             plugin_name=args.plugin_name,
             dry_run=args.dry_run,
             force=args.force,
+            split_hvac=True,
         )
         print(
             f"{'Would export' if result.dry_run else 'Exported'} Claude plugin: {result.plugin_dir}"
@@ -933,6 +950,7 @@ def _cmd_export(args: argparse.Namespace) -> int:
             plugin_name=args.plugin_name,
             dry_run=args.dry_run,
             force=args.force,
+            split_hvac=True,
         )
         print(
             f"{'Would export' if result.dry_run else 'Exported'} Codex plugin: {result.plugin_dir}"
@@ -980,9 +998,16 @@ def _render_marketplace_readme(
         "## Install\n\n"
         "- [Claude Code installation](INSTALL.claude.md)\n"
         "- [Codex installation](INSTALL.codex.md)\n\n"
+        "## HVAC upgrade from 0.4.2\n\n"
+        "Enable OpenStudio SI HVAC Modeler alongside the core to continue HVAC work. "
+        "Claude Code retains the old names through 0.4.x hotfixes. Codex exposes "
+        "the HVAC names from the specialist. Reload the host "
+        "and recheck any saved plan before applying it.\n\n"
         "## Contents\n\n"
-        f"- Claude plugin: `{plugin_name}/`\n"
-        f"- Codex plugin: `plugins/{plugin_name}/`\n"
+        f"- Claude Code core plugin: `{plugin_name}/`\n"
+        f"- Codex core plugin: `plugins/{plugin_name}/`\n"
+        f"- HVAC Modeler: `{HVAC_PLUGIN_ID}/` for Claude Code and "
+        f"`plugins/{HVAC_PLUGIN_ID}/` for Codex.\n"
         "- Runtime: install or update through the setup workflow after enabling a plugin.\n\n"
         "## Provenance\n\n"
         f"- Package version: `{_version()}`\n"
@@ -1018,12 +1043,14 @@ def _cmd_export_marketplace(args: argparse.Namespace) -> int:
             plugin_name=args.plugin_name,
             dry_run=True,
             force=args.force,
+            split_hvac=True,
         )
         codex.export_plugin(
             output_dir,
             plugin_name=args.plugin_name,
             dry_run=True,
             force=args.force,
+            split_hvac=True,
         )
         print(f"Would export paired Claude and Codex marketplace: {output_dir}")
         return 0
@@ -1033,6 +1060,7 @@ def _cmd_export_marketplace(args: argparse.Namespace) -> int:
         plugin_name=args.plugin_name,
         dry_run=False,
         force=args.force,
+        split_hvac=True,
     )
     claude_install = (output_dir / "INSTALL.md").read_text(encoding="utf-8")
 
@@ -1041,6 +1069,7 @@ def _cmd_export_marketplace(args: argparse.Namespace) -> int:
         plugin_name=args.plugin_name,
         dry_run=False,
         force=args.force,
+        split_hvac=True,
     )
     codex_install = (output_dir / "INSTALL.md").read_text(encoding="utf-8")
 
@@ -1078,6 +1107,8 @@ def _cmd_export_marketplace(args: argparse.Namespace) -> int:
     for plugin_dir in (
         output_dir / args.plugin_name,
         output_dir / "plugins" / args.plugin_name,
+        output_dir / HVAC_PLUGIN_ID,
+        output_dir / "plugins" / HVAC_PLUGIN_ID,
     ):
         validate_args.path = plugin_dir
         if _cmd_validate_export(validate_args) != 0:
@@ -1123,6 +1154,22 @@ def _cmd_validate_export(args: argparse.Namespace) -> int:
     if not plugin_dir.exists():
         print(f"Export path does not exist: {plugin_dir}", file=sys.stderr)
         return 1
+
+    if (plugin_dir / PLUGIN_DESCRIPTOR).is_file():
+        try:
+            read_plugin_descriptor(plugin_dir)
+            if (plugin_dir / ".mcp.json").exists():
+                raise ValueError("The HVAC plugin uses the core MCP server.")
+            if not any(
+                (plugin_dir / f".{host}-plugin" / "plugin.json").is_file()
+                for host in ("claude", "codex")
+            ):
+                raise ValueError("Missing host plugin manifest.")
+        except (OSError, TypeError, ValueError) as exc:
+            print(f"Invalid specialist export: {exc}", file=sys.stderr)
+            return 1
+        print(f"Export looks valid: {plugin_dir}")
+        return 0
 
     is_claude = (plugin_dir / ".claude-plugin" / "plugin.json").exists()
     required = (
@@ -1256,6 +1303,11 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="openstudio-si", description="OpenStudio SI runtime CLI"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser(
+        "plugin", help="Develop plugins (install openstudio-si[plugin-dev])."
+    )
+
+    subparsers.add_parser("eval", help="Run local agent evaluations (install openstudio-si[eval]).")
 
     doctor = subparsers.add_parser("doctor", help="Check runtime readiness.")
     doctor.add_argument(
@@ -1268,6 +1320,11 @@ def _build_parser() -> argparse.ArgumentParser:
     doctor.add_argument(
         "--plugin-contract-version",
         help="Plugin MCP interface contract version to check.",
+    )
+    doctor.add_argument(
+        "--plugin-dir",
+        type=Path,
+        help="Check the HVAC Modeler plugin root exposed by the current host.",
     )
     doctor.set_defaults(func=_cmd_doctor)
 
@@ -1440,8 +1497,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the `openstudio-si` console script."""
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] in {"plugin", "eval"}:
+        from openstudio_si.cli import main as plugin_main
+
+        return plugin_main(arguments)
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(arguments)
     return int(args.func(args))
 
 

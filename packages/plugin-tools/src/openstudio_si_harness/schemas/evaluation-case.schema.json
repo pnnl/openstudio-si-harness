@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft OpenStudio SI plugin agent evaluation case 0.1",
+  "description": "Draft SI tasks and evidence requirements mapped to DeepEval LLMTestCase and configurable G-Eval metrics. Cases without judge metrics run observable checks only.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
+      },
+      "uniqueItems": true
+    },
+    "arms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "required_tools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tool"
+      }
+    },
+    "forbidden_tools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required_skills": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "forbidden_skills": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "expected_tools_ordered": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "arm_routing": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "required_tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/tool"
+            }
+          },
+          "forbidden_tools": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required_skills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "forbidden_skills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": []
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "number"
+              },
+              "tolerance_pct": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "name",
+              "value",
+              "tolerance_pct"
+            ]
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_min": {
+              "type": "string",
+              "minLength": 1
+            },
+            "counts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "min_counts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "field": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "equals": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "contains": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "match": {
+                    "enum": [
+                      "all",
+                      "any"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "field"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "equals"
+                    ],
+                    "not": {
+                      "required": [
+                        "contains"
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "contains"
+                    ],
+                    "not": {
+                      "required": [
+                        "equals"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
+            }
+          },
+          "required": []
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "required": []
+    },
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "framework": {
+          "const": "deepeval"
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              },
+              "type": {
+                "const": "geval"
+              },
+              "criteria": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              },
+              "evaluation_steps": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8192
+                },
+                "minItems": 1,
+                "maxItems": 100
+              },
+              "evaluation_params": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "input",
+                    "actual_output",
+                    "expected_output",
+                    "context",
+                    "retrieval_context",
+                    "tools_called",
+                    "expected_tools"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "strict_mode": {
+                "type": "boolean"
+              },
+              "top_logprobs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "rubric": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 11,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "score_range": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "expected_outcome": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8192
+                    }
+                  },
+                  "required": [
+                    "score_range",
+                    "expected_outcome"
+                  ]
+                }
+              },
+              "required_artifacts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "evaluation_params"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "criteria"
+                ],
+                "not": {
+                  "required": [
+                    "evaluation_steps"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "evaluation_steps"
+                ],
+                "not": {
+                  "required": [
+                    "criteria"
+                  ]
+                }
+              }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "framework",
+        "metrics",
+        "threshold"
+      ]
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "retrieval_context": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "minItems": 1,
+      "maxItems": 100
+    }
+  },
+  "required": [
+    "schema_version",
+    "case_id",
+    "description",
+    "prompt",
+    "inputs"
+  ],
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "tool"
+      ]
+    }
+  }
+}

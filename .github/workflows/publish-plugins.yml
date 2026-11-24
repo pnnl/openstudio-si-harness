@@ -68,7 +68,7 @@ jobs:
           # Retire the old top-level Claude export during the marketplace rename.
           git -C plugins-repo rm -r --ignore-unmatch -- openstudio-ai
 
-          for dir in openstudio-si plugins .claude-plugin .agents; do
+          for dir in openstudio-si openstudio-si-hvac plugins .claude-plugin .agents; do
             rsync -a --delete "${src}/${dir}/" "plugins-repo/${dir}/"
           done
 

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft read-only dataset identity 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset",
+    "version",
+    "package",
+    "packaged_data",
+    "cache"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "packaged_data": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "sha256",
+            "files"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "sha256-path-content-v1"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "files": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "state",
+        "sha256"
+      ],
+      "properties": {
+        "selection": {
+          "enum": [
+            "argument",
+            "environment",
+            "default"
+          ]
+        },
+        "state": {
+          "enum": [
+            "missing",
+            "ready",
+            "unreadable",
+            "invalid",
+            "changing",
+            "wal_present"
+          ]
+        },
+        "sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "source_data_sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ],
+          "description": "Packaged-data digest recorded when building this cache. Null/absent means unverified legacy provenance."
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,6 @@
 name: openstudio_vav_reheat_system_creator
 description: Create a multi-zone VAV reheat system, including the bounded packaged VAV profile, in an OSM using version-pinned scripts and saved-model validation.
 metadata:
-  version: 0.4.2
   output_format: markdown_with_json_summary
 ---
 

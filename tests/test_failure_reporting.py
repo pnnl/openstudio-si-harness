@@ -544,7 +544,10 @@ def test_reporter_survives_missing_shared_sdk_and_relocation(event, tmp_path, ho
     assert "automatic" in policy.read_text()
     assert (
         "report-openstudio-failure"
-        in (moved / "skills/openstudio-hvac-remover/SKILL.md").read_text()
+        in (
+            result.plugin_dir.parent
+            / "openstudio-si-hvac/skills/openstudio-hvac-remover/SKILL.md"
+        ).read_text()
     )
     account = "Issues are created under your own authenticated GitHub account."
     for document in (
@@ -612,7 +615,7 @@ def test_native_public_remover_failure_saves_receipt_and_preserves_source(
             host_name=host, workspace_root=ROOT, runtime_mode="marketplace"
         )
     )
-    plugin = adapter.export_plugin(tmp_path / "export", dry_run=False).plugin_dir
+    plugin = adapter.export_plugin(tmp_path / "export", dry_run=False).plugin_dir.parent / "openstudio-si-hvac"
     source = tmp_path / "synthetic.osm"
     report = tmp_path / "failure.json"
     before = tmp_path / "source.sha256"
@@ -649,7 +652,9 @@ def test_native_public_remover_failure_saves_receipt_and_preserves_source(
     assert receipt["public"]["environment"]["observed_sdk"].split("+")[0] == "3.11.0"
     assert receipt["public"]["environment"]["source_version"] == "3.11.0"
     assert receipt["public"]["environment"]["bundle_id"]
-    assert receipt["public"]["environment"]["plugin_version"]
+    from harness.plugins import HVAC_VERSION
+
+    assert receipt["public"]["environment"]["plugin_version"] == HVAC_VERSION
     assert hashlib.sha256(source.read_bytes()).hexdigest() == before.read_text()
 
 

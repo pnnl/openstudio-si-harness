@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 import sqlite3
 import stat
 from pathlib import Path
 
 import cli
 from cli import main
+from harness.plugins import (
+    HVAC_CORE_RANGE,
+    HVAC_FORWARDING_BEFORE,
+    HVAC_FORWARDING_RELEASE,
+    HVAC_PLUGIN_ID,
+    HVAC_RELEASE,
+    HVAC_VERSION,
+    hvac_release_fingerprint,
+    HVAC_SKILLS,
+    PLUGIN_DESCRIPTOR,
+    plugin_readiness,
+    semver_precedence,
+    supports_hvac_core,
+)
 from openstudio_si_mcp.runtime.learning_store import LearningStore
 
 
@@ -118,7 +135,10 @@ def test_cli_learning_curates_measure_candidates_and_requires_prune_confirmation
             source="claude_code",
             workflow_id=workflow_id,
             scope={"tags": ["daylighting", "geometry"]},
-            evidence={"script_fingerprint": "daylighting-controls-v1", "outcome": "success"},
+            evidence={
+                "script_fingerprint": "daylighting-controls-v1",
+                "outcome": "success",
+            },
         )
 
     assert main(["learning", "propose-measures", "--json"]) == 0
@@ -141,8 +161,13 @@ def test_cli_learning_curates_measure_candidates_and_requires_prune_confirmation
 
     assert main(["learning", "prune", "--candidate-id", candidate_id]) == 2
     assert "Refusing to prune" in capsys.readouterr().err
-    assert main(["learning", "prune", "--candidate-id", candidate_id, "--yes", "--json"]) == 0
-    assert json.loads(capsys.readouterr().out)["deleted_candidate_ids"] == [candidate_id]
+    assert (
+        main(["learning", "prune", "--candidate-id", candidate_id, "--yes", "--json"])
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out)["deleted_candidate_ids"] == [
+        candidate_id
+    ]
 
 
 def test_cli_configure_openstudio_persists_confirmed_executable(
@@ -542,7 +567,11 @@ def test_cli_export_claude_marketplace(tmp_path: Path) -> None:
     )
 
 
-def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> None:
+def test_cli_export_paired_marketplace_includes_provenance(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-state"))
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-state"))
     assert (
         main(
             [
@@ -571,6 +600,144 @@ def test_cli_export_paired_marketplace_includes_provenance(tmp_path: Path) -> No
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert set(config["mcpServers"]) == {"openstudio_si"}
         assert config["mcpServers"]["openstudio_si"]["command"] == "openstudio-si-mcp"
+        helper = plugin / "skills/setup-openstudio-si/scripts/doctor_runtime.py"
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", str(helper), "--core-metadata"],
+            env={"PATH": ""}, capture_output=True, text=True, check=True,
+        )
+        assert json.loads(result.stdout) == {
+            "ok": True, "plugin_version": cli._version(),
+            "plugin_contract_version": cli.PLUGIN_CONTRACT_VERSION,
+        }
+
+    for host, plugin in (("claude", claude_plugin), ("codex", codex_plugin)):
+        specialist = plugin.parent / HVAC_PLUGIN_ID
+        assert {
+            path.parent.name for path in (specialist / "skills").glob("*/SKILL.md")
+        } == HVAC_SKILLS
+        assert not (plugin / "skills/hvac-modeler").exists()
+        for skill in HVAC_SKILLS - {"hvac-modeler"}:
+            legacy = plugin / "skills" / skill
+            if host == "claude" and supports_hvac_core(
+                cli._version(), HVAC_FORWARDING_RELEASE, HVAC_FORWARDING_BEFORE
+            ):
+                assert (
+                    f"openstudio-si-hvac:{skill}" in (legacy / "SKILL.md").read_text()
+                )
+            else:
+                assert not legacy.exists()
+            assert not (legacy / "scripts").exists()
+        assert not (plugin / "sdk/common/vav_plan.py").exists()
+        assert not (specialist / ".mcp.json").exists()
+        manifest = json.loads((specialist / f".{host}-plugin/plugin.json").read_text())
+        assert manifest["name"] == HVAC_PLUGIN_ID
+        assert manifest["version"] == HVAC_VERSION
+        assert (
+            json.loads((specialist / "sdk/bundle.json").read_text())["plugin_version"]
+            == HVAC_VERSION
+        )
+        for skill in (specialist / "skills").glob("*/SKILL.md"):
+            text = skill.read_text()
+            assert f"version: {HVAC_VERSION}\n" in text.split("---", 2)[1]
+            assert "doctor_runtime.py --core-metadata" in text
+            assert (
+                "live OpenStudio SI MCP connection is required\nfor simulation and results"
+                in text
+            )
+        if host == "claude":
+            assert manifest["dependencies"] == [
+                {"name": "openstudio-si", "version": HVAC_CORE_RANGE}
+            ]
+        else:
+            assert "dependencies" not in manifest
+        assert "packaged VAV" in manifest["description"]
+        market_path = {
+            "claude": ".claude-plugin/marketplace.json",
+            "codex": ".agents/plugins/marketplace.json",
+        }[host]
+        marketplace = json.loads((tmp_path / market_path).read_text())
+        assert {entry["name"] for entry in marketplace["plugins"]} == {
+            "openstudio-si",
+            HVAC_PLUGIN_ID,
+        }
+        core_bundle = json.loads((plugin / "sdk/bundle.json").read_text())["files"]
+        hvac_bundle = json.loads((specialist / "sdk/bundle.json").read_text())["files"]
+        common = core_bundle.keys() & hvac_bundle.keys()
+        assert common
+        assert all(core_bundle[path] == hvac_bundle[path] for path in common)
+
+    fingerprint = hvac_release_fingerprint(tmp_path)
+    assert fingerprint == HVAC_RELEASE["content_sha256"], (
+        "HVAC export content changed. Bump its version and record the new fingerprint "
+        f"in harness/hvac_release.json. Observed fingerprint: {fingerprint}"
+    )
+    base = os.environ.get("OPENSTUDIO_SI_RELEASE_BASE_SHA")
+    if base:
+        previous_files = subprocess.check_output(
+            ["git", "ls-tree", "--name-only", base, "--", "harness/hvac_release.json"],
+            text=True,
+        )
+        if previous_files.strip():
+            previous = json.loads(
+                subprocess.check_output(
+                    ["git", "show", f"{base}:harness/hvac_release.json"], text=True
+                )
+            )
+            if fingerprint != previous["content_sha256"]:
+                assert semver_precedence(HVAC_VERSION) > semver_precedence(
+                    previous["version"]
+                ), (
+                    "Changed HVAC content requires a version bump, even if its fingerprint was updated."
+                )
+
+    specialist = codex_plugin.parent / HVAC_PLUGIN_ID
+    checks = {
+        "version": cli._version(),
+        "plugin_compatibility": {"plugin_version": cli._version()},
+        "core_ready": True,
+        "openstudio": {"version_probe": {"openstudio_version": "3.11.0+241b8abb4d"}},
+    }
+    assert plugin_readiness(checks, None)[HVAC_PLUGIN_ID]["status"] == "not_detected"
+    assert plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["ready"]
+    cached = tmp_path / f"codex-state/plugins/cache/test-market/openstudio-si-hvac/{HVAC_VERSION}"
+    cached.parent.mkdir(parents=True)
+    cached.symlink_to(specialist, target_is_directory=True)
+    assert (
+        plugin_readiness(checks, None)[HVAC_PLUGIN_ID]["status"] == "cached_unverified"
+    )
+    for installed, runtime in ((None, "0.4.3"), ("0.4.2", "0.4.3"), ("0.4.3", "0.4.2")):
+        mixed = {
+            **checks,
+            "version": runtime,
+            "plugin_compatibility": {"plugin_version": installed},
+        }
+        assert (
+            plugin_readiness(mixed, specialist)[HVAC_PLUGIN_ID]["status"]
+            == "incompatible_core"
+        )
+    checks["openstudio"]["version_probe"]["openstudio_version"] = "3.10.0"
+    assert (
+        plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["status"]
+        == "incompatible_openstudio"
+    )
+    checks["core_ready"] = False
+    assert (
+        plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["status"]
+        == "core_not_ready"
+    )
+    descriptor = specialist / PLUGIN_DESCRIPTOR
+    metadata = json.loads(descriptor.read_text())
+    metadata["core_contract_version"] = "999.0"
+    descriptor.write_text(json.dumps(metadata))
+    assert (
+        plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["status"]
+        == "incompatible_core"
+    )
+    (specialist / "sdk/common/vav_plan.py").unlink()
+    assert (
+        plugin_readiness(checks, specialist)[HVAC_PLUGIN_ID]["status"]
+        == "package_incomplete"
+    )
 
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "INSTALL.claude.md" in readme
@@ -697,9 +864,9 @@ def test_cli_validate_export_allows_historical_metadata_unless_strict(
     plugin_dir = tmp_path / "plugins" / "openstudio-si"
     mcp_path = plugin_dir / ".mcp.json"
     mcp_config = json.loads(mcp_path.read_text(encoding="utf-8"))
-    mcp_config["mcpServers"]["openstudio_si"]["env"][
-        "OPENSTUDIO_SI_PLUGIN_VERSION"
-    ] = "0.0.1"
+    mcp_config["mcpServers"]["openstudio_si"]["env"]["OPENSTUDIO_SI_PLUGIN_VERSION"] = (
+        "0.0.1"
+    )
     mcp_path.write_text(json.dumps(mcp_config), encoding="utf-8")
 
     assert (

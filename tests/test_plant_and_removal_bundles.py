@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import pytest
+from plugin_fixture import hvac_export_root
 from test_vav_preflight import sdk
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills/sdk_scripts"
@@ -346,7 +347,7 @@ def test_new_skill_exports_run_relocated_without_runtime(sdk, tmp_path, host):
     exported = tmp_path / "export"
     adapter.export_plugin(exported, dry_run=False)
     plugin = next(
-        exported.rglob("openstudio-hvac-remover/SKILL.md")
+        hvac_export_root(exported, host).rglob("openstudio-hvac-remover/SKILL.md")
     ).parent.parent.parent
     moved_plugin = tmp_path / "relocated plugin"
     shutil.copytree(plugin, moved_plugin)

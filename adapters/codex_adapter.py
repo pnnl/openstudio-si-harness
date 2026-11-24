@@ -9,7 +9,12 @@ from pathlib import Path
 
 from adapters.base import OpenStudioSiHostAdapter
 from adapters.contracts import RUNTIME_MODES, HostAdapterConfig, HostLaunchPlan
-from adapters.runtime_helpers import optional_mcp_servers, write_runtime_helpers
+from adapters.hvac_plugin import export_hvac_plugin
+from adapters.runtime_helpers import (
+    optional_mcp_servers,
+    write_runtime_doctor,
+    write_runtime_helpers,
+)
 from harness.asset_manifest import (
     reference_exports_for_host,
     resource_exports_for_host,
@@ -19,6 +24,7 @@ from harness.asset_manifest import (
     skill_sources_for_host,
 )
 from harness.plugin_sdk import SDK_PACKAGING_GUIDANCE, write_resources
+from harness.plugins import CORE_DESCRIPTION, HVAC_PLUGIN_ID, HVAC_SKILLS
 from harness.registry import discover_harness_assets
 from openstudio_si_mcp.compatibility import package_version, plugin_mcp_environment
 
@@ -113,12 +119,21 @@ class CodexAdapter(OpenStudioSiHostAdapter):
         plugin_name: str = DEFAULT_PLUGIN_NAME,
         dry_run: bool = True,
         force: bool = False,
+        split_hvac: bool = True,
     ) -> CodexPluginExportResult:
         """Export a Codex plugin plus a repo-local marketplace manifest."""
         workspace_root = self.config.workspace_root.resolve()
         export_root = output_dir.resolve()
         plugin_dir = export_root / "plugins" / plugin_name
         marketplace_path = export_root / ".agents" / "plugins" / "marketplace.json"
+        hvac_dir = export_root / "plugins" / HVAC_PLUGIN_ID
+        if split_hvac and plugin_dir == hvac_dir:
+            raise ValueError(f"Core plugin name cannot be {HVAC_PLUGIN_ID}.")
+        skill_ids = (
+            frozenset(skill_ids_for_host(workspace_root, "codex")) - HVAC_SKILLS
+            if split_hvac
+            else None
+        )
         plan = self.build_launch_plan()
         runtime_mode = self.config.runtime_mode
         files = _planned_export_files(
@@ -128,7 +143,24 @@ class CodexAdapter(OpenStudioSiHostAdapter):
             plan,
             workspace_root,
             runtime_mode,
+            skill_ids,
         )
+
+        if split_hvac:
+            files.extend(
+                export_hvac_plugin(
+                    workspace_root,
+                    hvac_dir,
+                    "codex",
+                    render_skill=_render_exported_skill,
+                    copy_reference=_copy_reference_file,
+                    dry_run=True,
+                )
+            )
+            if not dry_run and hvac_dir.exists() and not force:
+                raise FileExistsError(
+                    f"{hvac_dir} already exists. Use --force to replace it."
+                )
 
         if dry_run:
             return CodexPluginExportResult(
@@ -147,16 +179,30 @@ class CodexAdapter(OpenStudioSiHostAdapter):
 
         marketplace_path.parent.mkdir(parents=True, exist_ok=True)
         marketplace_path.write_text(
-            _render_marketplace_json(plugin_name), encoding="utf-8"
+            _render_marketplace_json(plugin_name, split_hvac=split_hvac),
+            encoding="utf-8",
         )
         (export_root / "INSTALL.md").write_text(
             _render_install_doc(
                 export_root, marketplace_path, plugin_name, runtime_mode
             )
-            + SDK_PACKAGING_GUIDANCE,
+            + SDK_PACKAGING_GUIDANCE
+            + (_hvac_install_guidance() if split_hvac else ""),
             encoding="utf-8",
         )
-        _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode)
+        _write_plugin_package(plugin_dir, plan, workspace_root, runtime_mode, skill_ids)
+        if split_hvac:
+            if hvac_dir.exists():
+                shutil.rmtree(hvac_dir)
+            export_hvac_plugin(
+                workspace_root,
+                hvac_dir,
+                "codex",
+                render_skill=_render_exported_skill,
+                copy_reference=_copy_reference_file,
+                dry_run=False,
+                core_plugin_name=plugin_name,
+            )
 
         return CodexPluginExportResult(
             dry_run=False,
@@ -221,6 +267,7 @@ def _planned_export_files(
     plan: HostLaunchPlan,
     workspace_root: Path,
     runtime_mode: str,
+    skill_ids: frozenset[str] | None = None,
 ) -> list[Path]:
     """Return the files that `export_plugin` would create."""
     files = [
@@ -229,6 +276,7 @@ def _planned_export_files(
         plugin_dir / ".codex-plugin" / "plugin.json",
         plugin_dir / "assets" / "openstudio-si-icon.png",
         plugin_dir / ".mcp.json",
+        plugin_dir / "skills/setup-openstudio-si/scripts/doctor_runtime.py",
         plugin_dir / "README.md",
         plugin_dir / "CONNECTORS.md",
     ]
@@ -244,24 +292,25 @@ def _planned_export_files(
                 / "setup-openstudio-si"
                 / "scripts"
                 / "install_runtime.py",
-                plugin_dir
-                / "skills"
-                / "setup-openstudio-si"
-                / "scripts"
-                / "doctor_runtime.py",
             ]
         )
     files.extend(
         export.target
-        for export in skill_exports_for_host(workspace_root, plugin_dir, "codex")
+        for export in skill_exports_for_host(
+            workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+        )
     )
     files.extend(
         export.target
-        for export in reference_exports_for_host(workspace_root, plugin_dir, "codex")
+        for export in reference_exports_for_host(
+            workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+        )
     )
     files.extend(
         export.target
-        for export in resource_exports_for_host(workspace_root, plugin_dir, "codex")
+        for export in resource_exports_for_host(
+            workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+        )
     )
     return sorted(files)
 
@@ -271,6 +320,7 @@ def _write_plugin_package(
     plan: HostLaunchPlan,
     workspace_root: Path,
     runtime_mode: str,
+    skill_ids: frozenset[str] | None = None,
 ) -> None:
     """Materialize the Codex plugin package on disk."""
     (plugin_dir / ".codex-plugin").mkdir(parents=True, exist_ok=True)
@@ -287,7 +337,7 @@ def _write_plugin_package(
         _render_mcp_config(workspace_root, runtime_mode), encoding="utf-8"
     )
     (plugin_dir / "README.md").write_text(
-        _render_plugin_readme(plan, workspace_root, runtime_mode)
+        _render_plugin_readme(plan, workspace_root, runtime_mode, skill_ids=skill_ids)
         + SDK_PACKAGING_GUIDANCE,
         encoding="utf-8",
     )
@@ -303,7 +353,9 @@ def _write_plugin_package(
                 content + SDK_PACKAGING_GUIDANCE, encoding="utf-8"
             )
 
-    for skill in skill_exports_for_host(workspace_root, plugin_dir, "codex"):
+    for skill in skill_exports_for_host(
+        workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+    ):
         target_dir = skill.target.parent
         target_dir.mkdir(parents=True, exist_ok=True)
         skill.target.write_text(
@@ -311,16 +363,19 @@ def _write_plugin_package(
             encoding="utf-8",
         )
 
+    setup_scripts_dir = plugin_dir / "skills/setup-openstudio-si/scripts"
     if runtime_mode == "marketplace":
-        _write_installer_assets(
-            plugin_dir / "skills" / "setup-openstudio-si" / "scripts"
-        )
+        _write_installer_assets(setup_scripts_dir)
+    else:
+        write_runtime_doctor(setup_scripts_dir)
 
-    _write_skill_references(plugin_dir / "skills", workspace_root)
+    _write_skill_references(plugin_dir / "skills", workspace_root, skill_ids=skill_ids)
     write_resources(
-        resource_exports_for_host(workspace_root, plugin_dir, "codex"),
+        resource_exports_for_host(
+            workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+        ),
         plugin_dir,
-        aliases=sdk_reference_aliases(workspace_root, "codex"),
+        aliases=sdk_reference_aliases(workspace_root, "codex", skill_ids=skill_ids),
     )
 
 
@@ -331,10 +386,7 @@ def _render_plugin_json() -> str:
             {
                 "name": DEFAULT_PLUGIN_NAME,
                 "version": package_version(),
-                "description": (
-                    "OpenStudio SI harness for OpenStudio model editing, simulation, "
-                    "results, SDK lookup, and reusable workflow skills."
-                ),
+                "description": CORE_DESCRIPTION,
                 "author": {
                     "name": "OpenStudio SI",
                 },
@@ -359,7 +411,7 @@ def _render_plugin_json() -> str:
                     "capabilities": ["MCP", "Skills", "Workflow Automation"],
                     "defaultPrompt": [
                         "Inspect this OpenStudio model.",
-                        "Add a VAV reheat system.",
+                        "Check which OpenStudio SI plugins are ready.",
                         "Run simulation and summarize results.",
                     ],
                     "brandColor": "#2563EB",
@@ -419,7 +471,7 @@ def _mcp_server_config(workspace_root: Path, runtime_mode: str) -> dict[str, obj
     raise ValueError(f"Unsupported runtime mode: {runtime_mode}")
 
 
-def _render_marketplace_json(plugin_name: str) -> str:
+def _render_marketplace_json(plugin_name: str, *, split_hvac: bool = False) -> str:
     """Render a repo-local Codex marketplace manifest."""
     return (
         json.dumps(
@@ -440,13 +492,43 @@ def _render_marketplace_json(plugin_name: str) -> str:
                             "authentication": "ON_INSTALL",
                         },
                         "category": "Engineering",
-                    }
+                    },
+                    *(
+                        [
+                            {
+                                "name": HVAC_PLUGIN_ID,
+                                "source": {
+                                    "source": "local",
+                                    "path": f"./plugins/{HVAC_PLUGIN_ID}",
+                                },
+                                "policy": {
+                                    "installation": "AVAILABLE",
+                                    "authentication": "ON_INSTALL",
+                                },
+                                "category": "Engineering",
+                            }
+                        ]
+                        if split_hvac
+                        else []
+                    ),
                 ],
             },
             indent=2,
             ensure_ascii=True,
         )
         + "\n"
+    )
+
+
+def _hvac_install_guidance() -> str:
+    return (
+        "\n## HVAC Modeler\n\n"
+        "For VAV, packaged VAV, CAV, and equipment workflows, install the "
+        "`openstudio-si-hvac` plugin alongside OpenStudio SI. Enable it from the same marketplace in Codex.\n"
+        "Start with `$hvac-modeler`. To check availability, ask which OpenStudio SI "
+        "plugins are ready in your current session.\n"
+        "When upgrading from 0.4.2, enable HVAC Modeler explicitly. Route older HVAC skill names to the specialist. Resume saved work with "
+        "the specialist skill and verify the model, plan, and approval before applying.\n"
     )
 
 
@@ -500,11 +582,17 @@ def _render_install_doc(
 
 
 def _render_plugin_readme(
-    plan: HostLaunchPlan, workspace_root: Path, runtime_mode: str
+    plan: HostLaunchPlan,
+    workspace_root: Path,
+    runtime_mode: str,
+    *,
+    skill_ids: frozenset[str] | None = None,
 ) -> str:
     """Render the README shipped with the Codex plugin."""
     skill_names = "\n".join(
-        f"- `{skill}`" for skill in skill_ids_for_host(workspace_root, "codex")
+        f"- `{skill}`"
+        for skill in skill_ids_for_host(workspace_root, "codex")
+        if skill_ids is None or skill in skill_ids
     )
     return (
         "# OpenStudio SI\n\n"
@@ -513,7 +601,7 @@ def _render_plugin_readme(
         "## What It Includes\n\n"
         "- `.mcp.json`: registers the `openstudio_si` MCP server.\n"
         "- `skills/`: Codex-native workflows for orchestration, setup, model editing, "
-        "simulation, results, learning capture, and HVAC workflows.\n"
+        "simulation, results, and learning capture.\n"
         "- `skills/*/references/`: reviewed SDK context packs, prompt contracts, "
         "blackboard schemas, and learning schemas used by the owning skills.\n"
         "- `skills/setup-openstudio-si/scripts/`: marketplace runtime setup helpers.\n\n"
@@ -622,17 +710,26 @@ def _marketplace_setup_skill_docs() -> dict[str, str]:
                 "without replacing existing instructions. Do not present this as a separate "
                 "optional setup process.\n"
                 "13. Summarize core readiness separately from optional capabilities, then report "
-                "model loading, HVAC workflow support, simulation, "
+                "model loading, specialist plugin readiness, simulation, "
                 "results, SDK lookup, workflow state tracking, and project routing.\n"
             ),
         ),
         "doctor-openstudio-si": _skill_markdown(
             name="doctor-openstudio-si",
-            description="Diagnose OpenStudio SI runtime readiness.",
+            description="Report which OpenStudio SI plugins are ready, what each does, and how to resolve missing setup.",
             body=(
                 "# Doctor OpenStudio SI\n\n"
-                "Run the setup skill's `scripts/doctor_runtime.py`, then run "
-                "`openstudio-si doctor` if the command exists. Explain missing Python, "
+                "When asked which plugins are ready, run the setup skill's "
+                "`scripts/doctor_runtime.py` with host Python. The helper supplies "
+                "the installed core plugin's version and contract. "
+                "If the current host exposes `hvac-modeler`, pass the root containing its "
+                "`skills/` directory with `--plugin-dir`. Report each entry in `plugins`, "
+                "including its description, status, and diagnostic message. A directory path "
+                "checks package files and runtime compatibility; use this session's available "
+                "skills to confirm that the host loaded the plugin. For local HVAC work "
+                "when the runtime is unavailable, use `--core-metadata` and run the "
+                "selected capability's local preflight.\n\n"
+                "Explain missing Python, "
                 "missing runtime, missing OpenStudio, or path problems as setup items, "
                 "not programming failures.\n"
             ),
@@ -692,10 +789,14 @@ def _rewrite_skill_frontmatter_name(content: str, skill_name: str) -> str:
     return "---\n" + "\n".join(rewritten) + body
 
 
-def _write_skill_references(skills_dir: Path, workspace_root: Path) -> None:
+def _write_skill_references(
+    skills_dir: Path, workspace_root: Path, *, skill_ids: frozenset[str] | None = None
+) -> None:
     """Place supporting files inside the Codex skills that use them."""
     plugin_dir = skills_dir.parent
-    for export in reference_exports_for_host(workspace_root, plugin_dir, "codex"):
+    for export in reference_exports_for_host(
+        workspace_root, plugin_dir, "codex", skill_ids=skill_ids
+    ):
         _copy_reference_file(export.source, export.target)
 
 
@@ -831,6 +932,7 @@ def main() -> int:
             plugin_name=args.plugin_name,
             dry_run=args.dry_run,
             force=args.force,
+            split_hvac=True,
         )
         mode = "Would export" if result.dry_run else "Exported"
         print(f"{mode} marketplace: {result.marketplace_path}")

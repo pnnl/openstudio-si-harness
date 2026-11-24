@@ -6,6 +6,14 @@ documentation. Root-level files are kept to operational entry points only:
 
 ## Current Docs
 
+- [Plugin readiness](PLUGIN_READINESS.md): draft metadata doctor, capability and
+  dependency evidence, explicit selected-runtime profiles/probes, status semantics,
+  and remaining MCP/BESD work.
+
+- [Plugin development refactor plan](PLUGIN_DEVELOPMENT_REFACTOR_PLAN.md): ownership,
+  contributor tooling, evaluation/readiness contracts, implementation summary and
+  remaining marketplace/BESD work.
+
 - [SDK integration and review summary](SDK_INTEGRATION_SUMMARY.md): consolidated
   A–D contracts, completed review fixes, native evidence, reproduction commands
   and the next equipment checkpoint.
@@ -33,3 +41,5 @@ The active blackboard schemas live under `blackboard/schemas/` and are exported
 by the Claude and Codex adapters. The old root-level `blackboard_schema.json`
 was removed because it described an earlier session-level schema and was not
 used by runtime code or package exports.
+
+- [Local plugin evaluation](PLUGIN_EVALUATION.md): step-C commands, evidence, model adapters and limits.

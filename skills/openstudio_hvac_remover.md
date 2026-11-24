@@ -2,7 +2,6 @@
 name: openstudio-hvac-remover
 description: Remove selected air loops, VRF systems, zone HVAC equipment or explicitly unused plant loops from a copied OSM using a reviewed cascade plan.
 metadata:
-  version: 0.4.2
 ---
 
 If inventory or preflight returns `status: requires_preparation`, run this bundled

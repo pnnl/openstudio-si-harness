@@ -400,7 +400,7 @@ def test_native_exported_preflight_runs_from_unrelated_directory(
             runtime_mode="marketplace",
         )
     ).export_plugin(tmp_path / "export", dry_run=False)
-    skill = result.plugin_dir / "skills/openstudio-vav-reheat-system-creator"
+    skill = result.plugin_dir.parent / "openstudio-si-hvac/skills/openstudio-vav-reheat-system-creator"
     configuration = tmp_path / "config.json"
     configuration.write_text(json.dumps(config))
     foreign = tmp_path / "foreign" / "common"

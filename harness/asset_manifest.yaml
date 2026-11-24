@@ -37,6 +37,9 @@ resources:
       - hosts: [claude, codex]
         skill: openstudio-sdk-model-editor
         path: scripts/common/failure_reporting.py
+      - hosts: [claude, codex]
+        skill: hvac-modeler
+        path: scripts/common/failure_reporting.py
   # Independent recovery copy intentionally works even if sdk/ is damaged.
   - source: skills/sdk_scripts/common/failure_reporting.py
     owners:
@@ -2099,6 +2102,9 @@ resources:
         path: references/plant_replacement.schema.json
 
 skills:
+  - id: hvac-modeler
+    source: skills/hvac_modeler.md
+    hosts: [claude, codex]
   - id: openstudio-plant-equipment-replacer
     source: skills/openstudio_plant_equipment_replacer.md
     hosts: [claude, codex]

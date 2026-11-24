@@ -1,0 +1,3 @@
+# Tools ship in the root openstudio-si wheel, not a separate distribution.
+[tool.pytest.ini_options]
+testpaths = ["tests"]

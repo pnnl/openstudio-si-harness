@@ -1,0 +1,156 @@
+# @@NAME@@
+
+@@DESCRIPTION@@
+
+This generated OpenStudio SI plugin includes a starter skill and optional MCP
+example. Replace the layout demonstration and cases with reviewed domain work.
+Local generation requires no running OpenStudio service or GitHub repository.
+
+## Local development
+
+Install the shared developer tools from the registered `openstudio-si` PyPI package:
+
+```bash
+python -m pip install "openstudio-si[plugin-dev]"
+openstudio-si plugin check-project .
+openstudio-si plugin validate ./plugin
+mkdir -p dist
+openstudio-si plugin export ./plugin --output ./dist/plugin > dist/export-report.json
+openstudio-si plugin check-hosts dist/export-report.json
+```
+
+Use a release that includes these commands; older releases do not provide the
+extra. The installation includes the OpenStudio SDK and runtime dependencies.
+No separate tooling download or lab-managed tooling lock is required. Native
+host checks also require Claude Code and Codex. CI maintains their versions
+centrally and installs them with npm --ignore-scripts.
+
+@@MCP_SETUP@@
+
+If using the example server, install this project's own Python runtime in your
+chosen environment with `python -m pip install -e .`. This local build does not
+install the tooling by an unregistered name and is not run in the upload job.
+
+## CI setup and upgrades
+
+The initial workflow files are manual-only configuration stubs. After PNNL
+publishes an `openstudio-si` release containing plugin development tools and
+reviews the shared workflows, activate them with:
+
+```bash
+openstudio-si plugin configure-ci . \
+  --workflow-ref <full-PNNL-workflow-commit-SHA> \
+  --tooling-version <published-openstudio-si-version>
+```
+
+The command installs no packages. It records the exact stable PyPI version and
+writes thin calls to the pinned PNNL workflows. The version defaults to the
+installed `openstudio-si` version (minimum 0.5.0). CI probes the required
+commands before proceeding. Run it again with a newer ref/version to
+upgrade without recreating this project. Edited managed workflows require
+reconciliation before upgrading. Commit the resulting files.
+
+The read-only build installs `openstudio-si[plugin-dev]==<version>` from PyPI
+in a clean environment with binary wheels. Dependencies resolve for the selected
+platform/Python; this pins the tool release, not every transitive dependency.
+Checkout uses persist-credentials: false. The separate upload-only job has
+contents: write, performs no checkout or dependency installation, and uploads
+candidate artifacts. No model credentials or LLM calls are used.
+
+## Identity, license and evaluation
+
+Review owner, maintainers and dependencies in plugin/openstudio-si-plugin.yaml.
+The license was explicitly selected during generation, and its copyright holder
+uses the supplied holder or organization/maintainer. The template does not decide
+an approved default for a lab; confirm the choice with its legal/IP office.
+
+The manifest version is also the Python build version. Hatch reads it using its
+[regex version source](https://hatch.pypa.io/latest/plugins/version-source/regex/).
+Keep schema/API ranges separate from plugin release numbers. Evaluation case and
+run configuration are draft 0.1. Use the local runner below after selecting your models and credential environment variables. Judge scores remain advisory.
+
+## Marketplace release
+
+Before tagging, run plugin check-project . --require-tracked locally. CI cannot
+recover ignored files that never reached Git. The same check in a fresh CI
+checkout is only a consistency check.
+
+After CI setup, publish a source GitHub release with tag v<manifest-version>.
+The shared build validates tracked source, checks hosts, verifies the tag, and
+creates reproducible archives plus hashes/source provenance. The upload-only job
+stages those assets on this repository's release. Re-runs use --clobber so a
+partial earlier upload can be completed. The intended destination is a
+plugin-scoped PR in pnnl/openstudio-si-plugins, using the central importer.
+That automatic submission is step E and is explicitly still pending. There is
+no lab PyPI release and no shared-marketplace write token in the build job.
+
+Generation provenance is in .openstudio-si-template.json; CI setup is recorded
+in .openstudio-si/ci.json (workflow commit and tool release).
+
+The SDK is installed with `openstudio-si[plugin-dev]`, but generation and
+packaging do not import it or require a native OpenStudio CLI. Budget roughly
+370 MB for the environment; size varies with platform and dependencies. The
+pinned OpenStudio 3.11.0 package currently has no Windows Python 3.14 wheel;
+use a supported Python/platform combination (CI uses Linux/Python 3.13).
+
+
+## Local agent evaluation with DeepEval
+
+Install `python -m pip install "openstudio-si[eval]"`. Edit the generated
+`eval-run.example.yaml`, select agent/judge models and the DeepEval judge supplier, set credential
+ENVIRONMENT VARIABLES, and save as `eval-run.local.yaml`. Export first, then run:
+
+```bash
+openstudio-si eval run --plugin ./plugin --cases ./plugin/evals/cases \
+  --config ./eval-run.local.yaml --output ./outputs/evals/run-001
+openstudio-si eval report --run ./outputs/evals/run-001
+```
+
+Plugin paths are relative to the config file. Cases and run/result contracts are
+draft 0.1. The first host drivers use API/gateway credentials in isolated state,
+not existing subscription login files. Claude needs explicit allowed_tools for
+shell/edit tasks. Codex currently cannot verify skill activation through exec
+JSONL; those checks are marked not_observable with notes. Codex defaults to
+read-only; opt into agent.sandbox: workspace-write for edits. Host capability
+profiles are recorded, and MCP policies remain plugin-defined. Text model checks do not validate
+sizing; metrics quoted in prose are unverified notes. SQL/binary content
+extraction is not implemented; a metric requiring file contents must declare
+required_artifacts and include context. Keep reviewed references out of inputs. Cases configure G-Eval criteria or steps, evidence parameters and optional score bands. Judge scores stay advisory. Keep all actual LLM execution out of CI;
+unit-testing the framework with local stubs requires no model credentials.
+
+Use `expected.output` for literal answers instead of treating the answer string as
+a private reference document. Single-line tool-result overlap is an advisory
+warning next to the score; answer-only matches have lower confidence. A whole
+private reference in tool results, or a strict majority of its distinct substantial
+private lines (at least two), fails the session and skips judging. Substantial
+means at least 32 normalized characters; whole-reference matching uses the same
+minimum. Text present in the prompt, inputs or installed plugin files is excluded.
+Explicit evaluation-path access also fails the session and skips judging.
+`summary.json` includes a total `warning_count` across sessions.
+
+Write references in your own words as independently reviewed expectations; do not
+paste plugin tool output into them. A correct call to the same tool can otherwise
+match the whole reference and fail the session. Use `expected.output` for literal
+answers or `expected.model` checks for supported model properties. Rewording reduces
+accidental matches but cannot guarantee that the audit identifies the text's source.
+Short table rows such as `Core | 41.2` are below the content threshold: a whole-table
+read can be detected, while reads split across tool results may produce no content
+finding. The heuristic is not complete answer-key protection.
+
+Hosted judges receive selected evaluation data, potentially including full tool
+traces, reference text and OSM/project artifacts. Known-secret redaction is not
+project-data anonymization. Use Ollama or an approved internal gateway for sensitive
+data. Proxy/CA environment settings are inherited; MCP-declared variables are shared
+with the agent process and listed in the capability metadata.
+
+Re-export after every source or case edit. Use expected.model.path to select a
+saved output when a workflow generates several OSM files; server intermediates are
+kept as evidence. The report labels SI's weighted score separately from native
+DeepEval per-metric pass. Both are advisory.
+
+The optional plugin/evals/calibration/judge-injection-canary.json exercises a judge
+with a deliberately wrong answer containing scoring instructions. Run eval with
+--cases ./plugin/evals/calibration in a separate output directory and inspect the
+actual answer. A low correctness score is intended. JSON evidence boundaries and
+grading rules reduce injection exposure, but each real provider/model needs local
+calibration. This canary is not part of the default cases or CI.

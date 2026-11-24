@@ -1,0 +1,11 @@
+# Managed by openstudio-si plugin configure-ci.
+name: Configure plugin validation
+on: workflow_dispatch
+permissions: {}
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo 'CI is inactive. Configure a PNNL workflow SHA and published openstudio-si version with plugin configure-ci.'
+          exit 1

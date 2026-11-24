@@ -1,0 +1,24 @@
+name: Stage marketplace candidate assets
+on:
+  workflow_call:
+    inputs:
+      release-tag:
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      # No checkout, dependency installation or contributor code in this job.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: marketplace-candidate
+          path: candidate-assets
+      - name: Stage assets on the source release for the marketplace importer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: gh release upload "$RELEASE_TAG" candidate-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+      - run: echo 'Candidate assets target pnnl/openstudio-si-plugins. Automatic scoped PR submission requires the central importer (step E). No PyPI publication occurs.'

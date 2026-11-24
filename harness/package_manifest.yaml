@@ -1,5 +1,5 @@
 name: openstudio_si_harness
-version: 0.4.2
+version: 0.5.0
 description: Portable OpenStudio SI harness for agent hosts.
 entrypoints:
   mcp_server: openstudio_si_mcp/server.py

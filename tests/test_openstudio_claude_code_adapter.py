@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from harness.plugins import HVAC_VERSION
 from pathlib import Path
 
 import pytest
@@ -326,7 +327,7 @@ def test_claude_code_adapter_exports_workflow_skill_frontmatter(tmp_path: Path) 
     _adapter().export_plugin(tmp_path, dry_run=False)
 
     skill = (
-        tmp_path / "openstudio-si" / "skills" / "add-vav-reheat" / "SKILL.md"
+        tmp_path / "openstudio-si-hvac" / "skills" / "add-vav-reheat" / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert skill.startswith("---\n")
     assert "name: add-vav-reheat\n" in skill
@@ -334,7 +335,7 @@ def test_claude_code_adapter_exports_workflow_skill_frontmatter(tmp_path: Path) 
         "description: Add a multi-zone VAV system using the parent skill's bundled scripts.\n"
         in skill
     )
-    assert "\n---\n\nPrioritize configured, compatible NLR OpenStudio MCP" in skill
+    assert "Prioritize configured, compatible NLR OpenStudio MCP" in skill
     propose_measure = (
         tmp_path / "openstudio-si" / "skills" / "propose-measure" / "SKILL.md"
     ).read_text(encoding="utf-8")
@@ -347,7 +348,7 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
 
     skill = (
         tmp_path
-        / "openstudio-si"
+        / "openstudio-si-hvac"
         / "skills"
         / "openstudio-vav-reheat-system-creator"
         / "SKILL.md"
@@ -355,8 +356,8 @@ def test_claude_code_adapter_exports_skill_frontmatter(tmp_path: Path) -> None:
     assert skill.startswith("---\n")
     assert "name: openstudio-vav-reheat-system-creator\n" in skill
     assert "description: Create a multi-zone VAV reheat system, including the bounded packaged VAV profile" in skill
-    assert "version: 0.4.2\n" in skill
-    assert "\n---\n\n## Direct script workflow" in skill
+    assert f"version: {HVAC_VERSION}\n" in skill
+    assert "## Direct script workflow" in skill
 
 
 def test_claude_code_adapter_export_plugin_dry_run_does_not_write(

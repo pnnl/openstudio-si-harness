@@ -1558,3 +1558,34 @@ files. Contents are not staged and no release-workflow policy was changed.
 ## OpenStudio SI rename release
 
 The first OpenStudio SI release targets `0.4.2`, MCP contract `6.0`, and OpenStudio SDK `3.11.0`. The maintainer confirmed that the PyPI name is available and the publishing credential is ready. Release OpenStudio SI as a fresh install. Use clean projects for host smoke tests and leave existing OpenStudio AI data intact. After the runtime and marketplace are live, post the announcement on the GitLab page for `openstudio-si-plugins`. Follow the [rename phase](docs/CORE_AND_AGENTS_PLAN.md#1-complete-and-verify-the-openstudio-si-rename) for cutover checks.
+
+## HVAC Modeler split
+
+The first implementation is on `codex/hvac-modeler` from the merged OpenStudio
+SI release. CLI and Marketplace exports split the existing HVAC skills into
+`openstudio-si-hvac` 0.1.0 for Codex and Claude Code. Core owns provider routing
+and the shared MCP service. HVAC skill procedures retain their reviewed-plan
+and saved-model validation requirements. The original packaged VAV commit
+`46e76f4` is cherry-picked in [PR #54](https://github.com/pnnl/openstudio-si-harness/pull/54).
+Its native sizing test passed locally. The split branch is based on PR #54,
+with PVAV implementation and sizing-test changes confined to that PR.
+`openstudio-si doctor --json --plugin-dir <active-hvac-root>` checks the
+specialist package, core contract, and compatible OpenStudio CLI. Local tests
+verified both marketplace layouts, native VAV/PVAV/CAV preflight and apply,
+and the generated doctor helper with OpenStudio 3.11.0. The release build
+remains to be verified. See the
+[development plan](docs/CORE_AND_AGENTS_PLAN.md#3-package-one-hvac-modeler-and-a-small-capability-set).
+
+The split targets core `0.4.3` and HVAC Modeler `0.1.0`. The specialist requires
+core `>=0.4.3 <0.5.0`; the Claude Code manifest declares the dependency and both
+hosts check the active core plugin's disk metadata for local HVAC work. The
+connected runtime is needed for simulation and results. Claude Code forwards
+the old names through 0.4.x hotfixes. Codex uses the specialist's skill names
+directly. The HVAC release metadata pins a
+fingerprint of both host packages, including their shared SDK payloads.
+
+Claude Code 2.1.309 verified all four install cases from isolated marketplace
+configurations. Installing HVAC automatically installed compatible core. The
+0.4.2 core produced a dependency error. Codex package, readiness, and native
+launcher checks passed, but the isolated Codex CLI project did not load the
+marketplace entries. Live Codex checks remain open.

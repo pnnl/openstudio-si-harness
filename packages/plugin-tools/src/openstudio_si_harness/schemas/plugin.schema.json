@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft OpenStudio SI plugin identity and dependency manifest 0.1",
+  "description": "Draft. Skills and MCP connections are discovered from standard plugin files. Repository provenance is resolved at release.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "owner": {
+      "$ref": "#/$defs/owner"
+    },
+    "contributors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/person"
+      }
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness_api": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "harness_api"
+      ]
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skill_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mcp_server_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "skill_count",
+        "mcp_server_count"
+      ],
+      "description": "Optional summary. Export writes counts discovered from files; supplied counts must match."
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dependency"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/capability"
+      },
+      "minItems": 1
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cases": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+$"
+        }
+      },
+      "required": [
+        "cases"
+      ]
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "description",
+    "version",
+    "owner",
+    "license",
+    "compatibility",
+    "dependencies",
+    "capabilities",
+    "evaluation"
+  ],
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "github": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contact": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maintainers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/person"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization",
+        "maintainers"
+      ]
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "enum": [
+            "plugin",
+            "python-distribution",
+            "command",
+            "mcp-server",
+            "dataset",
+            "configuration"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version_spec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "probe": {
+          "enum": [
+            "metadata",
+            "command-version",
+            "mcp-initialize",
+            "mcp-tools",
+            "dataset-metadata",
+            "configuration-present"
+          ]
+        },
+        "install_hint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ID of a declared plugin dependency providing this MCP server."
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "target",
+        "required",
+        "probe"
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "read-data",
+              "read-model",
+              "write-model",
+              "simulate",
+              "network",
+              "write-artifact"
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "requires",
+        "effects"
+      ]
+    }
+  }
+}
