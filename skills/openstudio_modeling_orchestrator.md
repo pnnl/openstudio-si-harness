@@ -29,6 +29,8 @@ task-specific skill before acting; do not recreate its procedure from memory.
   overview or selected diagrams; full topology and private labels stay local.
 - Use `openstudio-vav-reheat-system-creator` for multi-zone VAV work through
   its exact-release doctor, bundled preflight/apply, and saved-model validator.
+  Route packaged VAV with gas central heat, approved two-speed DX cooling and
+  electric terminal reheat to its `prototype_pvav_v1` profile.
   Do not draft objects individually; the legacy child skills have been removed.
 - Use `openstudio-cav-system-creator` for the prototype CAV arrangement with a
   constant-volume fan, water heating/reheat and VAV-reheat terminals. Clarify a
