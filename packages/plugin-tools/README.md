@@ -8,8 +8,9 @@ packaging do not import it or require a native OpenStudio CLI. Budget roughly
 pinned OpenStudio 3.11.0 package currently has no Windows Python 3.14 wheel;
 use a supported Python/platform combination (CI uses Linux/Python 3.13).
 No separate PyPI project or GitHub tooling asset release is needed. The first
-plugin-development release is `openstudio-si` 0.5.0. Until it is published, install
-a wheel built from this checkout using the instructions below.
+plugin-development release, `openstudio-si` 0.5.0, is published on PyPI.
+For unreleased changes, install a wheel built from this checkout using the
+instructions below.
 
 ```bash
 python -m pip install "openstudio-si[plugin-dev]"

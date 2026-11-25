@@ -30,6 +30,8 @@ The named bootstrap environment keeps tooling out of the parent folder's `.venv`
 If the CLI is already available you can skip that bootstrap and invoke it directly.
 The new project's environment remains inside its own repository. Select your
 organization's approved license/holder.
+The commands pin published 0.5.0 for authoring. After 0.5.1 is available on PyPI,
+these installs can use `"openstudio-si[plugin-dev]>=0.5.1"`.
 The base installation includes OpenStudio SDK 3.11.0; no OpenStudio CLI or MCP is
 needed for this read-only plugin. Do not publish this demonstration as a second
 `openstudio-si` PyPI package.
