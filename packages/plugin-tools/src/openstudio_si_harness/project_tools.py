@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-from pathlib import Path
 import queue
 import re
 import shutil
@@ -11,6 +10,7 @@ import tempfile
 import threading
 import time
 import zipfile
+from pathlib import Path
 
 from . import __version__
 from .export import DESCRIPTOR, export_plugin, validate_export
@@ -22,7 +22,9 @@ def check_project(root: Path, require_tracked: bool = False) -> dict:
     plugin = load_plugin(root / "plugin")
     from .evaluation.contracts import load_cases
 
-    cases = load_cases(root / "plugin" / plugin["manifest"]["evaluation"]["cases"], root / "plugin")
+    cases = load_cases(
+        root / "plugin" / plugin["manifest"]["evaluation"]["cases"], root / "plugin"
+    )
     if require_tracked:
         selected = [*plugin["files"], Path("openstudio-si-plugin.yaml")]
         if (root / "plugin/.mcp.json").exists():
@@ -68,8 +70,7 @@ def validate_codex(marketplace, plugins):
     errors = []
 
     def read_errors():
-        for line in process.stderr:
-            errors.append(line)
+        errors.extend(process.stderr)
 
     threading.Thread(target=read_errors, daemon=True).start()
 
@@ -85,7 +86,7 @@ def validate_codex(marketplace, plugins):
 
     def rpc(identity, method, params):
         process.stdin.write(
-            json.dumps(dict(id=identity, method=method, params=params)) + "\n"
+            json.dumps({"id": identity, "method": method, "params": params}) + "\n"
         )
         process.stdin.flush()
         deadline = time.monotonic() + 30
@@ -139,7 +140,7 @@ def check_hosts(report_path: Path) -> dict:
     report = json.loads(report_path.read_text())
     if set(report["packages"]) != {"claude", "codex"}:
         raise ValueError("Supply both host packages.")
-    for host, path in report["packages"].items():
+    for path in report["packages"].values():
         checked = validate_export(Path(path))
         if (
             checked["manifest"]["id"] != report["id"]
@@ -240,7 +241,7 @@ def package_release(
         "destination": {
             "repository": "pnnl/openstudio-si-plugins",
             "operation": "plugin-scoped-pull-request",
-            "status": "importer-pending",
+            "status": "awaiting-import",
         },
         "packages": {},
     }
@@ -310,3 +311,56 @@ def prepare_hosts(prefix: Path, output_dir: Path) -> dict:
         stream.write("#!/bin/sh\nexec " + shlex.quote(str(executable)) + ' "$@"\n')
     wrapper.chmod(0o755)
     return {"bin": str(output_dir.resolve()), "claude": str(executable)}
+
+
+def check_marketplace_hosts(root: Path) -> dict:
+    """Read every catalog plugin in isolated native hosts, including legacy core."""
+    from .github_releases import native_environment
+    from .marketplace import (
+        copy_marketplace,
+        inventory,
+        package_path,
+        read_json,
+        validate_marketplace,
+    )
+
+    result = validate_marketplace(root)
+    catalog = inventory(root)
+    with tempfile.TemporaryDirectory(prefix="si-catalog-hosts-") as temporary:
+        temporary = Path(temporary)
+        copy_marketplace(root, temporary / "marketplace")
+        marketplace = temporary / "marketplace"
+        home = temporary / "home"
+        home.mkdir()
+        expected = {}
+        for (host, identity), details in catalog.items():
+            if host != "codex":
+                continue
+            package = package_path(marketplace, host, identity)
+            if details["manifest"]:
+                counts = details["manifest"]["inventory"]
+            else:
+                config = package / ".mcp.json"
+                counts = {
+                    "skill_count": len(list((package / "skills").glob("*/SKILL.md"))),
+                    "mcp_server_count": (
+                        len(read_json(config).get("mcpServers", {}))
+                        if config.exists()
+                        else 0
+                    ),
+                }
+            expected[identity] = counts
+        with native_environment(home):
+            for identity in expected:
+                subprocess.run(
+                    [
+                        "claude",
+                        "plugin",
+                        "validate",
+                        str(package_path(marketplace, "claude", identity)),
+                    ],
+                    check=True,
+                    timeout=60,
+                )
+            validate_codex(marketplace, expected)
+    return {**result, "native_hosts_verified": True}

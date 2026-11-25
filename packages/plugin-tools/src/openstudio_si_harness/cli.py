@@ -109,9 +109,55 @@ def main(argv=None) -> int:
     )
     prepare.add_argument("prefix", type=Path)
     prepare.add_argument("--output-dir", type=Path, required=True)
+    poll = plugin.add_parser(
+        "marketplace-poll",
+        help="Verify registered GitHub releases and prepare scoped marketplace proposals.",
+    )
+    poll.add_argument("--marketplace", type=Path, required=True)
+    poll.add_argument("--output", type=Path, required=True)
+    poll.add_argument("--base-sha", required=True)
+    poll.add_argument("--plugin-id")
+    poll.add_argument("--native-hosts", action="store_true")
+    catalog = plugin.add_parser(
+        "validate-marketplace",
+        help="Validate the full host-scoped marketplace graph and release receipts.",
+    )
+    catalog.add_argument("marketplace", type=Path)
+    catalog.add_argument("--native-hosts", action="store_true")
+    core = plugin.add_parser(
+        "sync-core-marketplace",
+        help="Update core/HVAC exports while preserving independent plugins.",
+    )
+    core.add_argument("generated", type=Path)
+    core.add_argument("marketplace", type=Path)
     args = parser.parse_args(argv)
     try:
-        if args.action == "doctor":
+        if args.action == "marketplace-poll":
+            from .github_releases import poll as poll_releases
+
+            result = poll_releases(
+                args.marketplace,
+                args.output,
+                base_sha=args.base_sha,
+                plugin_id=args.plugin_id,
+                native_hosts=args.native_hosts,
+            )
+        elif args.action == "validate-marketplace":
+            from .marketplace import validate_marketplace
+
+            result = validate_marketplace(args.marketplace)
+            if args.native_hosts:
+                from .project_tools import check_marketplace_hosts
+
+                result = check_marketplace_hosts(args.marketplace)
+            else:
+                result["native_hosts_verified"] = False
+
+        elif args.action == "sync-core-marketplace":
+            from .marketplace import sync_core
+
+            result = sync_core(args.generated, args.marketplace)
+        elif args.action == "doctor":
             from .readiness import doctor as diagnose
 
             result = diagnose(
@@ -173,7 +219,14 @@ def main(argv=None) -> int:
         else:
             hosts = HOSTS if args.host == "all" else (args.host,)
             result = export_plugin(args.source, args.output, hosts)
-    except (OSError, ValueError, yaml.YAMLError, subprocess.SubprocessError) as exc:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        yaml.YAMLError,
+        subprocess.SubprocessError,
+    ) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2))

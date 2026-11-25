@@ -112,7 +112,9 @@ PEP 440. The two release archives and release.json contain source identity and
 hashes; stale exports and mismatched release tags fail before writing release
 artifacts. Archive timestamps are fixed for repeatable builds. The configured release
 workflow stages these candidate artifacts on the developer's GitHub release.
-Marketplace PR submission requires the importer in step E and is not wired yet.
+The central marketplace polls registered source releases, verifies candidates
+against their immutable source and proposes scoped PRs. Deployment/enrollment
+steps are in [the publishing guide](../../docs/PLUGIN_PUBLISHING.md).
 
 Tool releases use the existing `openstudio-si` PyPI publishing workflow and
 share its version. The internal Python import remains `openstudio_si_harness`;
@@ -149,9 +151,9 @@ packaged native Claude binary without executing its lifecycle installer. The
 separate upload-only job has contents: write but performs no checkout, dependency
 installation or contributor-code execution. It stages candidate assets on the
 lab's GitHub release for the intended pnnl/openstudio-si-plugins importer. Candidate
-records explicitly state importer-pending; archive upload is not marketplace
-publication. Central scoped PR submission remains step E. The existing full-tree
-core publisher cannot be reused for independent lab updates.
+records state awaiting-import; archive upload is not marketplace publication.
+The central importer supplies scoped PR submission after deployment/enrollment.
+Core/HVAC synchronization now preserves independent packages and catalog entries.
 
 Shared commands are plugin check-project PROJECT [--require-tracked],
 plugin check-hosts EXPORT_REPORT and plugin package-release PROJECT --report ...
@@ -315,3 +317,12 @@ The maintained suite is grouped under `tests/authoring`, `tests/evaluation` and
 `tests/readiness`, with shared builders/fixtures under `tests/support`. See
 [the test guide](tests/README.md) for installed-wheel and focused commands.
 Host-loader and isolated released-core conformance scripts live in `checks/`.
+
+## Central marketplace commands
+
+`plugin marketplace-poll`, `validate-marketplace` and `sync-core-marketplace` are
+introduced in the 0.5.1 tooling release. Polling prepares verified scoped proposals;
+it does not push or open PRs locally. The central workflow provides an isolated
+stdlib writer and immutable post-merge tag creation. See
+[the publishing guide](../../docs/PLUGIN_PUBLISHING.md) and
+[the one-skill OSM tutorial](../../docs/PLUGIN_OSM_SUMMARY_TUTORIAL.md).
