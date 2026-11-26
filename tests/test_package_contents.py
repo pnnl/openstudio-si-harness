@@ -60,6 +60,8 @@ def test_release_archives_exclude_local_openstudio_fixtures(tmp_path: Path) -> N
         "runtime_worker",
         "runtime_supervisor",
         "process",
+        "marketplace",
+        "github_releases",
     ):
         assert f"openstudio_si_harness/{module}.py" in wheel_names
     assert "openstudio_si_harness/schemas/runtime-profile.schema.json" in wheel_names

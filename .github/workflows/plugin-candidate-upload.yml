@@ -21,4 +21,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release-tag }}
         run: gh release upload "$RELEASE_TAG" candidate-assets/* --repo "$GITHUB_REPOSITORY" --clobber
-      - run: echo 'Candidate assets target pnnl/openstudio-si-plugins. Automatic scoped PR submission requires the central importer (step E). No PyPI publication occurs.'
+      - run: echo 'Candidate assets target pnnl/openstudio-si-plugins. Registered source releases are polled by the central importer; no lab marketplace token or PyPI publication is required.'

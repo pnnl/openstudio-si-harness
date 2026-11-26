@@ -60,20 +60,11 @@ jobs:
             --output-dir "${RUNNER_TEMP}/marketplace" \
             --force
 
-      - name: Sync generated files into plugins checkout
+      - name: Sync only core and HVAC into the current marketplace
+        working-directory: harness-repo
         run: |
-          set -euo pipefail
-          src="${RUNNER_TEMP}/marketplace"
-
-          # Retire the old top-level Claude export during the marketplace rename.
-          git -C plugins-repo rm -r --ignore-unmatch -- openstudio-ai
-
-          for dir in openstudio-si openstudio-si-hvac plugins .claude-plugin .agents; do
-            rsync -a --delete "${src}/${dir}/" "plugins-repo/${dir}/"
-          done
-
-          cp "${src}/README.md" "${src}/INSTALL.claude.md" \
-             "${src}/INSTALL.codex.md" "${src}/.generated.json" plugins-repo/
+          uv run --frozen --extra plugin-dev openstudio-si plugin sync-core-marketplace \
+            "${RUNNER_TEMP}/marketplace" "${GITHUB_WORKSPACE}/plugins-repo"
 
       - name: Commit and push export branch
         working-directory: plugins-repo

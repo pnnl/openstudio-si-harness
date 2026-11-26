@@ -81,8 +81,12 @@ creates reproducible archives plus hashes/source provenance. The upload-only job
 stages those assets on this repository's release. Re-runs use --clobber so a
 partial earlier upload can be completed. The intended destination is a
 plugin-scoped PR in pnnl/openstudio-si-plugins, using the central importer.
-That automatic submission is step E and is explicitly still pending. There is
-no lab PyPI release and no shared-marketplace write token in the build job.
+After source/owner enrollment, the central marketplace polls public stable
+releases and independently verifies source, archives, dependencies and both hosts
+before opening a scoped PR. Maintainers review/merge it; validated main commits
+receive immutable plugin-version tags. Central tooling/workflows/credentials must
+be deployed before this path is enabled. No lab PyPI release or marketplace write
+token is needed. See the harness PLUGIN_PUBLISHING.md for setup and enrollment.
 
 Generation provenance is in .openstudio-si-template.json; CI setup is recorded
 in .openstudio-si/ci.json (workflow commit and tool release).

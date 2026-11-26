@@ -6,6 +6,16 @@ documentation. Root-level files are kept to operational entry points only:
 
 ## Current Docs
 
+- [OSM summary plugin tutorial](PLUGIN_OSM_SUMMARY_TUTORIAL.md): one skill, zero MCP
+  servers, SDK evidence, local evaluation and contributor release steps.
+- [Plugin publishing](PLUGIN_PUBLISHING.md): central release polling, enrollment,
+  source/host verification, scoped PRs, immutable tags and deployment.
+- [0.5.1 release candidate notes](RELEASE_NOTES_0.5.1.md): OSM summary tutorial and
+  central publishing implementation, with deployment still pending.
+
+- [0.5.0 release notes](RELEASE_NOTES_0.5.0.md): core/HVAC separation, contributor
+  tools, local evaluation, readiness checks, upgrade guidance and release limits.
+
 - [Plugin readiness](PLUGIN_READINESS.md): draft metadata doctor, capability and
   dependency evidence, explicit selected-runtime profiles/probes, status semantics,
   and remaining MCP/BESD work.

@@ -1,6 +1,6 @@
 [project]
 name = "openstudio-si-standalone"
-version = "0.5.0"
+version = "0.5.1"
 description = "Python 3.10+ AUTOMA-AI and Streamlit development environment for OpenStudio SI."
 requires-python = ">=3.10"
 dependencies = [

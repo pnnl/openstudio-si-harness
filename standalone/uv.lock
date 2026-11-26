@@ -3291,7 +3291,7 @@ wheels = [
 
 [[package]]
 name = "openstudio-si"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "../" }
 dependencies = [
     { name = "jinja2" },
@@ -3338,7 +3338,7 @@ provides-extras = ["eval", "plugin-dev", "dev", "standards"]
 
 [[package]]
 name = "openstudio-si-standalone"
-version = "0.5.0"
+version = "0.5.1"
 source = { virtual = "." }
 dependencies = [
     { name = "automa-ai", extra = ["mcp"] },

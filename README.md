@@ -1,12 +1,12 @@
 # OpenStudio SI Harness
 
-Release preparation: **0.5.0**, with optional plugin development/evaluation tools
+Release preparation: **0.5.1**, with optional plugin development/evaluation tools
 and independently versioned specialist plugins.
 
 OpenStudio SI Harness packages a local MCP runtime, host adapters, skills,
 knowledge, and workflow-state tools for SI-assisted building-energy modeling.
 
-The SI rename began at **0.4.2**. Release **0.5.0** retains MCP plugin/runtime
+The SI rename began at **0.4.2**. Release **0.5.1** retains MCP plugin/runtime
 contract **6.0** and OpenStudio **3.11.0**. Install the SI runtime and host plugin together.
 See the [release guide](docs/RELEASE.md) for publication and cutover steps.
 
@@ -520,3 +520,8 @@ cache build records distinguish current packaged data from stale/legacy caches.
 The BESD provider is staged in its separate development repository; the
 skill/registration transfer remains the next checkpoint. See the
 [readiness contract](docs/PLUGIN_READINESS.md).
+
+Developers can start with the [single-skill OSM summary walkthrough](docs/PLUGIN_OSM_SUMMARY_TUTORIAL.md).
+The [publishing guide](docs/PLUGIN_PUBLISHING.md) describes registered-source polling,
+source/host verification, scoped marketplace PRs and immutable tags. The new central
+commands require the 0.5.1 tools release and deployment configuration.

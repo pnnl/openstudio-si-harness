@@ -1,6 +1,6 @@
 {
   "suite": "openstudio_si_agent_eval_cases",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Conversation-style evaluation cases for the OpenStudio SI Model Workspace Agent.",
   "default_model_path": "tests/fixtures/sample.osm",
   "evaluation_dimensions": [

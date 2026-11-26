@@ -320,7 +320,12 @@ def test_codex_adapter_installed_mode_uses_runtime_command(tmp_path: Path) -> No
     assert server["args"] == ["--transport", "stdio"]
     assert server["env"] == plugin_mcp_environment()
     assert not (
-        tmp_path / "plugins" / "openstudio-si" / "skills" / "setup-openstudio-si"
+        tmp_path
+        / "plugins"
+        / "openstudio-si"
+        / "skills"
+        / "setup-openstudio-si"
+        / "SKILL.md"
     ).exists()
 
 

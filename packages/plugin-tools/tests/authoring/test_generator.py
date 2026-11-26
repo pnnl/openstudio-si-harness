@@ -290,7 +290,7 @@ def test_release_archives_are_reproducible_and_provenance_is_recorded(
     assert record["destination"] == {
         "repository": "pnnl/openstudio-si-plugins",
         "operation": "plugin-scoped-pull-request",
-        "status": "importer-pending",
+        "status": "awaiting-import",
     }
     for package in record["packages"].values():
         archive = project / "dist/release" / package["archive"]
